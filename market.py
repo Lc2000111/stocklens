@@ -26,6 +26,60 @@ def _quote(symbol):
     return res[0] if res else {}
 
 
+def _quote_from_history(symbol, ticker):
+    """Quote-like fields built only from services that answer cloud servers: price history (+ dividends),
+    quarterly statements (EPS, shares, book value) and this app's database (name, forward P/E from I/B/E/S)."""
+    hist = ticker.history(period="1y", auto_adjust=False)
+    close = hist["Close"].dropna() if hist is not None and not hist.empty else None
+    if close is None or len(close) < 2:
+        return {}
+    price, prev = float(close.iloc[-1]), float(close.iloc[-2])
+    q = {"symbol": symbol, "regularMarketPrice": price, "regularMarketPreviousClose": prev,
+         "regularMarketChange": price - prev, "regularMarketChangePercent": (price / prev - 1) * 100,
+         "fiftyTwoWeekHigh": float(hist["High"].max()), "fiftyTwoWeekLow": float(hist["Low"].min()),
+         "fiftyDayAverage": float(close.iloc[-50:].mean()), "twoHundredDayAverage": float(close.iloc[-200:].mean()),
+         "currency": "USD", "quoteType": "EQUITY"}
+    try:
+        qi, qb = ticker.quarterly_income_stmt, ticker.quarterly_balance_sheet
+    except Exception:
+        qi = qb = None
+    eps = _ttm(qi, "Diluted EPS")
+    if eps:
+        q["epsTrailingTwelveMonths"] = eps
+        q["trailingPE"] = price / eps if eps > 0 else None
+    shares = _latest(qb, "Ordinary Shares Number", "Share Issued")
+    equity = _latest(qb, "Stockholders Equity")
+    if shares:
+        q["marketCap"] = price * shares
+        q["sharesOutstanding"] = shares
+        if equity:
+            q["priceToBook"] = price / (equity / shares)
+    if "Dividends" in hist:
+        rate = float(hist["Dividends"].sum())
+        if rate > 0:
+            q["trailingAnnualDividendRate"] = rate
+            q["dividendYield"] = rate / price * 100          # percent, like Yahoo's own field
+    try:  # name and forward P/E (I/B/E/S consensus) from our database
+        import db
+        row = db.latest_result(symbol)
+        if row:
+            q["longName"] = row.get("name")
+            if row.get("fwd_pe"):
+                q["forwardPE"] = row["fwd_pe"]
+                q["epsForward"] = row["price"] / row["fwd_pe"] if row.get("price") else None
+    except Exception:
+        pass
+    if not q.get("longName"):
+        try:
+            hit = next((x for x in yf.Search(symbol, max_results=3).quotes if x.get("symbol") == symbol), None)
+            if hit:
+                q["longName"] = hit.get("longname") or hit.get("shortname")
+                q["fullExchangeName"] = hit.get("exchDisp")
+        except Exception:
+            pass
+    return q
+
+
 def _ttm(df, row, n=4):
     """Sum of the last n quarters for one statement row (None if not available)."""
     if df is None or df.empty or row not in df.index:
@@ -49,7 +103,12 @@ def _fallback_info(symbol, ticker):
     Used when Yahoo's main company-metrics service (quoteSummary, behind `ticker.info`) returns nothing.
     It refuses requests from cloud servers such as Render, while these other Yahoo services still answer.
     Not available this way: beta, analyst price targets and the business description."""
-    q = _quote(symbol)
+    try:
+        q = _quote(symbol)          # answers from home connections; refuses cloud servers (HTTP 401)
+    except Exception:
+        q = {}
+    if not q or q.get("regularMarketPrice") is None:
+        q = _quote_from_history(symbol, ticker)   # price-history service still answers cloud servers
     if not q or q.get("regularMarketPrice") is None:
         return {}
     rating = (q.get("averageAnalystRating") or "").split(" - ")[-1].strip().lower().replace(" ", "_") or None
@@ -83,7 +142,7 @@ def _fallback_info(symbol, ticker):
         if qi is None or qi.empty or row not in qi.index:
             return None
         v = qi.loc[row].dropna()
-        return v.iloc[0] / v.iloc[4] - 1 if len(v) >= 5 and v.iloc[4] > 0 else None
+        return float(v.iloc[0] / v.iloc[4] - 1) if len(v) >= 5 and v.iloc[4] > 0 else None
 
     cap = info["marketCap"]
     ev = cap + (debt or 0) - (cash or 0) if cap else None
