@@ -1,7 +1,7 @@
 # StockLens: is this stock expensive vs. its own history?
 
-**Live app:** _link will be added after deployment_ (free hosting: the first visit after a quiet period can take
-up to a minute while the server wakes up)
+**Live app: https://stocklens-9saq.onrender.com**. It's on free hosting, so the first visit after a quiet period
+can take up to a minute while the server wakes up.
 
 StockLens screens the **S&P 500, Nasdaq-100 and Dow 30** (516 stocks) and shows where each one's **trailing P/E,
 forward P/E and PEG** sit against **its own 5-year history**. AI agents explain the numbers in plain English and
