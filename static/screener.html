@@ -1,0 +1,441 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>P/E Screener · StockLens</title>
+<style>
+  :root {
+    --bg: #ffffff; --panel: #ffffff; --panel-2: #fdf3f8; --border: #efdbe5;
+    --pink: #e0197d; --pink-soft: #ec5a9e; --pink-dim: #f2a3c7;
+    --text: #1d1218; --muted: #76626c; --up: #15803d; --down: #dc2626; --warn: #d97706;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--text); font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, Roboto, sans-serif; font-size: 15px; line-height: 1.45; }
+  .wrap { max-width: 1200px; margin: 0 auto; padding: 28px 24px 60px; }
+  header { display: flex; align-items: center; gap: 28px; margin-bottom: 26px; }
+  .logo { font-size: 22px; font-weight: 800; letter-spacing: -0.5px; color: var(--text); text-decoration: none; }
+  .logo span { color: var(--pink); }
+  nav { display: flex; gap: 6px; }
+  nav a { color: var(--muted); text-decoration: none; font-weight: 700; font-size: 14px; padding: 7px 14px; border-radius: 999px; border: 1px solid transparent; }
+  nav a:hover { color: var(--pink); }
+  nav a.on { color: #ffffff; background: var(--pink); }
+
+  h1 { margin: 0; font-size: 30px; letter-spacing: -0.5px; }
+  h1 em { color: var(--pink); font-style: normal; }
+  .sub { color: var(--muted); margin: 6px 0 22px; max-width: 760px; }
+
+  .panel { background: var(--panel); border: 1px solid var(--border); border-radius: 16px; padding: 20px; }
+  h3 { font-size: 13px; text-transform: uppercase; letter-spacing: 1.2px; color: var(--pink); margin: 0 0 14px; }
+
+  .controls { display: flex; flex-wrap: wrap; gap: 22px; align-items: center; margin-bottom: 16px; }
+  .controls label { color: var(--muted); font-size: 14px; display: flex; align-items: center; gap: 10px; cursor: pointer; }
+  .controls b { color: var(--pink); font-size: 18px; min-width: 52px; display: inline-block; }
+  input[type=range] { accent-color: var(--pink); width: 200px; }
+  input[type=checkbox] { accent-color: var(--pink); width: 16px; height: 16px; }
+  .spacer { flex: 1; }
+  .updated { color: var(--muted); font-size: 13px; }
+  button.primary { background: var(--pink); color: #ffffff; border: none; font-weight: 800; padding: 9px 16px; border-radius: 10px; cursor: pointer; font-size: 14px; }
+  button.primary:disabled { opacity: 0.5; cursor: wait; }
+  .progress { height: 4px; background: var(--border); border-radius: 2px; overflow: hidden; margin: -6px 0 16px; display: none; }
+  .progress div { height: 100%; background: var(--pink); width: 0; transition: width 0.2s; }
+
+  .tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; margin-bottom: 16px; }
+  .tile { background: var(--panel); border: 1px solid var(--border); border-radius: 14px; padding: 14px 16px; }
+  .tile .k { color: var(--muted); font-size: 12px; text-transform: uppercase; letter-spacing: 0.8px; }
+  .tile .v { font-size: 26px; font-weight: 800; margin-top: 4px; }
+  .tile.accent { border-color: var(--pink-dim); background: linear-gradient(160deg, #fde7f1, var(--panel)); }
+  .tile.accent .v { color: var(--pink); }
+
+  table { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; }
+  th, td { padding: 10px 7px; border-bottom: 1px solid var(--border); text-align: right; white-space: nowrap; }
+  th { color: var(--muted); font-weight: 600; font-size: 12.5px; cursor: pointer; user-select: none; position: sticky; top: 0; background: var(--panel); }
+  th:hover { color: var(--text); }
+  th.sorted { color: var(--pink); }
+  th.left, td.left { text-align: left; }
+  tbody tr { cursor: pointer; }
+  tbody tr:hover { background: rgba(224, 25, 125, 0.07); }
+  tr.dim td { opacity: 0.45; }
+  .tk { color: var(--pink); font-weight: 800; }
+  .nm { color: var(--muted); font-size: 12.5px; margin-left: 6px; }
+  .warn { color: var(--warn); cursor: help; margin-left: 6px; }
+
+  .pbar { display: inline-flex; align-items: center; gap: 10px; }
+  .pbar .track { width: 64px; height: 7px; border-radius: 4px; background: var(--border); overflow: hidden; }
+  .pbar .fill { height: 100%; background: linear-gradient(90deg, var(--pink-dim), var(--pink)); }
+  .pbar .num { font-weight: 800; min-width: 44px; }
+  .hot { color: var(--pink); }
+
+  .range { width: 112px; height: 26px; display: block; margin-left: auto; }
+  .spark { width: 96px; height: 30px; display: block; margin-left: auto; }
+  tr.hit3 td:first-child { box-shadow: inset 4px 0 0 var(--pink); }
+  tr.hit2 td:first-child { box-shadow: inset 4px 0 0 var(--pink-dim); }
+  .flag { color: var(--pink); font-weight: 800; }
+  .pill { display: inline-block; margin-left: 8px; padding: 1px 6px; border-radius: 999px; background: var(--pink); color: #ffffff; border: 1px solid var(--pink); font-size: 9.5px; font-weight: 800; letter-spacing: 0.4px; vertical-align: 1px; cursor: help; }
+  .pill.two { background: transparent; color: var(--pink); }
+  th[title] { text-decoration: underline dotted var(--pink-dim); text-underline-offset: 3px; }
+
+  .empty { text-align: center; color: var(--muted); padding: 50px 0; }
+  .method { color: var(--muted); font-size: 14px; margin-top: 16px; }
+  .method p { margin: 8px 0; }
+  .method code { color: var(--pink-soft); }
+  footer { color: #b3a3ab; font-size: 12px; margin-top: 30px; text-align: center; }
+
+  .panel, .tile { box-shadow: 0 1px 3px rgba(29, 18, 24, 0.06); }
+
+  .seg { display: inline-flex; background: var(--panel-2); border: 1px solid var(--border); border-radius: 12px; padding: 3px; gap: 2px; }
+  .seg button { border: none; background: transparent; color: var(--muted); font-weight: 700; font-size: 13.5px; padding: 7px 14px; border-radius: 9px; cursor: pointer; }
+  .seg button:hover { color: var(--pink); }
+  .seg button.on { background: var(--pink); color: #ffffff; }
+  .seg button:disabled { opacity: 0.4; cursor: not-allowed; }
+  .ctl-label { color: var(--muted); font-size: 14px; margin-right: 10px; }
+  th.selcol { color: var(--pink); }
+  td.trio { font-weight: 700; color: var(--muted); }
+  td.trio.hot { color: var(--pink); }
+  td.trio.sel { background: rgba(224, 25, 125, 0.05); }
+  .src { color: var(--muted); font-size: 12.5px; margin: -6px 0 16px; }
+  td.aicell { width: 34px; padding-left: 2px; padding-right: 2px; }
+  .ai-ico { width: 28px; height: 28px; border-radius: 50%; border: 1.5px solid var(--pink-dim); background: #fff; color: var(--pink);
+            display: inline-flex; align-items: center; justify-content: center; cursor: pointer; padding: 0; }
+  .ai-ico:hover { border-color: var(--pink); background: var(--panel-2); }
+  .ai-ico.on { background: var(--pink); border-color: var(--pink); color: #fff; }
+  .ai-ico svg { width: 15px; height: 15px; }
+  tr.ai-detail, tr.ai-detail:hover { background: transparent; cursor: default; }
+  tr.ai-detail td { white-space: normal; text-align: left; padding: 0 8px 14px 34px; border-bottom: 1px solid var(--border); }
+  .ai-box { background: linear-gradient(160deg, #fdf3f8, #ffffff 70%); border: 1px solid var(--pink-dim); border-left: 4px solid var(--pink);
+            border-radius: 12px; padding: 12px 16px; max-width: 860px; }
+  .ai-box-head { display: flex; align-items: center; gap: 10px; font-size: 12.5px; color: var(--muted); }
+  .ai-box-head b { color: var(--pink); text-transform: uppercase; letter-spacing: 1px; font-size: 12px; }
+  .ai-box-head a { color: var(--pink); text-decoration: none; font-weight: 700; }
+  .ai-box-head .x { margin-left: auto; cursor: pointer; font-size: 18px; line-height: 1; color: var(--muted); background: none; border: none; }
+  .ai-box .ai-out { margin-top: 6px; font-size: 14px; }
+  .ai-box .ai-out ul { margin: 4px 0; }
+  select { font: inherit; font-size: 14px; font-weight: 600; color: var(--text); background: var(--panel-2); border: 1px solid var(--border); border-radius: 10px; padding: 7px 10px; cursor: pointer; }
+  select:focus { outline: 2px solid var(--pink-dim); }
+  .short { color: var(--muted); font-weight: 500; font-size: 12px; cursor: help; }
+  .tile .v span { display: inline; line-height: 1.6; }
+</style>
+<script src="/static/md.js"></script>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <a class="logo" href="/">Stock<span>Lens</span></a>
+    <nav><a href="/">Lookup</a><a href="/screener" class="on">P/E Screener</a><a href="/ask">Ask AI</a></nav>
+  </header>
+
+  <h1>Priced <em>high</em> vs. their own history</h1>
+  <p class="sub">The S&amp;P 500, Nasdaq-100 and Dow 30, ranked by where today's valuation sits within its own range over the past 5 years.
+    A 90th-percentile stock is more expensive than it was 90% of the time over that period, on the measure you pick below.</p>
+
+  <div class="controls">
+    <span><span class="ctl-label">Rank by</span><span class="seg" id="basis">
+      <button data-b="trailing" class="on" title="Price ÷ last 12 months of reported EPS · daily history (Yahoo)">Trailing P/E</button>
+      <button data-b="forward" title="Price ÷ consensus EPS for the next 12 months · monthly history (I/B/E/S)">Forward P/E</button>
+      <button data-b="peg" title="Forward P/E ÷ expected next-year EPS growth · monthly history (I/B/E/S)">PEG</button>
+    </span></span>
+    <label>Percentile ≥ <b id="thVal">80th</b><input type="range" id="th" min="50" max="99" value="80" /></label>
+    <select id="list" title="Which stock list to show">
+      <option value="all">All companies</option>
+      <option value="sp500">S&amp;P 500</option>
+      <option value="nasdaq100">Nasdaq-100 (QQQ)</option>
+      <option value="dow30">Dow Jones 30</option>
+      <option value="popular">Popular 50</option>
+    </select>
+    <select id="sector" title="Filter by sector"><option value="">All sectors</option></select>
+  </div>
+  <div class="controls">
+    <label><input type="checkbox" id="showAll" /> Show all stocks</label>
+    <select id="hitFilter" title="How many of the three measures (trailing P/E, forward P/E, PEG) must be at or above the cutoff">
+      <option value="0">Any measure</option>
+      <option value="2">High on 2+ measures</option>
+      <option value="3">High on all 3 measures</option>
+    </select>
+    <label><input type="checkbox" id="showFlagged" /> Include spin-off-affected stocks</label>
+    <span class="spacer"></span>
+    <span class="updated" id="updated"></span>
+    <button class="primary" id="refresh">Refresh prices</button>
+  </div>
+  <div class="progress" id="progress"><div></div></div>
+  <div class="src" id="src"></div>
+
+  <div class="tiles" id="tiles"></div>
+
+
+  <div class="panel" style="overflow-x:auto">
+    <table>
+      <thead><tr id="head"></tr></thead>
+      <tbody id="rows"></tbody>
+    </table>
+    <div class="empty" id="empty" style="display:none"></div>
+  </div>
+
+  <div class="panel method">
+    <h3>How it's calculated</h3>
+    <p><b>Trailing P/E</b> (daily, Yahoo) = closing price ÷ trailing-12-month EPS, where trailing EPS is the sum of the four most recently reported quarters as of that day. Rebuilt for every trading day over 5 years.</p>
+    <p><b>Forward P/E</b> (monthly, I/B/E/S via WRDS) = price ÷ analysts' consensus EPS for the <em>next twelve months</em>. That's a blend of this fiscal year's and next fiscal year's consensus, weighted by how much of this year is left, which is the standard way forward P/E is quoted. Each month uses the estimates analysts actually had <em>at that time</em>, so the history isn't distorted by hindsight.</p>
+    <p><b>PEG</b> (monthly, I/B/E/S) = forward P/E ÷ expected EPS growth, where growth = next fiscal year's consensus ÷ this year's − 1. Shown as n/m when expected growth is below 2% (dividing by a near-zero growth rate gives a huge, meaningless PEG). I/B/E/S also has a long-term growth estimate, but only 1–4 analysts provide it per stock, so it's shown only in the tooltip.</p>
+    <p><b>Percentile</b> = share of the past 5 years (days for trailing, months for forward and PEG) with a value at or below today's. Today's forward P/E and PEG use today's price with the latest I/B/E/S consensus. I/B/E/S arrives monthly with a lag; the date is shown above the table.</p>
+    <p><b>ALL 3 / 2 OF 3</b> counts how many of the three measures (trailing P/E, forward P/E and PEG) are at or above your percentile cutoff. <b>ALL 3</b> (solid badge) means the stock looks expensive against its own history whichever way you measure it: on past earnings, on expected earnings, <em>and</em> on the price paid per unit of expected growth. <b>2 OF 3</b> (outlined badge) means two of the three agree; hover the badge to see which. A high trailing percentile on its own often just means earnings are expected to recover or jump, so the more measures agree, the stronger the signal. PEG shows n/m (and can't count) when expected growth is under 2%.</p>
+    <p><b>Caveats.</b> Trailing EPS uses the <em>adjusted</em> figures analysts track, so it can differ from the GAAP P/E on the Lookup page. A high percentile can mean the price ran up <em>or</em> earnings/estimates fell. Stocks with a spin-off in the window (<span class="warn">⚠</span>) are hidden by default because their earnings before and after aren't comparable. Forward and PEG percentiles need at least 24 months of I/B/E/S history; newer listings show "short". Refresh the I/B/E/S data monthly with <code>.venv/bin/python ibes.py</code>.</p>
+    <p><b>Data storage.</b> Everything is saved in a SQLite database, <code>stocklens.db</code>. Each "Refresh prices" adds a snapshot, so you can see how valuations change over time. Edit the stock lists in <code>universe.py</code>; update the S&amp;P 500 list with <code>.venv/bin/python update_index_lists.py</code>.</p>
+  </div>
+  <footer>Trailing data: Yahoo Finance via yfinance · Forward data: LSEG I/B/E/S via WRDS · not investment advice</footer>
+</div>
+
+<script>
+const $ = (id) => document.getElementById(id);
+const isNum = (v) => typeof v === "number" && isFinite(v);
+const NA = '<span style="color:#b3a3ab">—</span>';
+const NM = '<span title="Not meaningful: negative/zero earnings or expected growth under 2%" style="color:var(--muted)">n/m</span>';
+let data = null, basis = "trailing", sortKey = "pct", sortDir = -1;
+
+// What each "Rank by" option reads from a result row
+const BASES = {
+  trailing: { label: "Trailing P/E", now: "pe", med: "peMedian", min: "peMin", max: "peMax", pct: "percentile", spark: "spark", fmt: (v) => v.toFixed(1) + "x", hist: "daily" },
+  forward:  { label: "Forward P/E", now: "fwdPE", med: "fwdMedian", min: "fwdMin", max: "fwdMax", pct: "fwdPctile", spark: "fwdSpark", fmt: (v) => v.toFixed(1) + "x", hist: "monthly" },
+  peg:      { label: "PEG", now: "peg", med: "pegMedian", min: "pegMin", max: "pegMax", pct: "pegPctile", spark: "pegSpark", fmt: (v) => v.toFixed(2), hist: "monthly" },
+};
+const B = () => BASES[basis];
+
+// [label, sort key, css class, tooltip]; sort keys starting with "pct"/"now"/"med" follow the selected basis
+const COLS = () => [
+  ["#", null, "left"],
+  ["Stock", "symbol", "left"],
+  ["Now", "now", "", `Today's ${B().label}`],
+  ["5Y median", "med", "", `Median ${B().hist} value over the past 5 years`],
+  ["5Y range", null, "", "5-year low to high · tick = median · dot = today"],
+  ["Percentile", "pct", "", `% of the past 5 years (${B().hist}) at or below today's ${B().label}`],
+  ["Trailing", "percentile", basis === "trailing" ? "selcol" : "", "Trailing P/E percentile"],
+  ["Forward", "fwdPctile", basis === "forward" ? "selcol" : "", "Forward P/E percentile (I/B/E/S)"],
+  ["PEG", "pegPctile", basis === "peg" ? "selcol" : "", "PEG percentile (I/B/E/S)"],
+  ["Exp. gr.", "growth", "", "Expected next-year EPS growth: next FY consensus ÷ this FY − 1 (I/B/E/S)"],
+  ["History", null, "", `${B().label}: ${B().hist === "daily" ? "weekly" : "monthly"} values over the past 5 years`],
+  ["", null, "", "AI summary: click a row's ✦ icon"],
+];
+const sortVal = (r, k) => k === "pct" ? r[B().pct] : k === "now" ? r[B().now] : k === "med" ? r[B().med] : r[k];
+
+function renderHead() {
+  $("head").innerHTML = COLS().map(([label, key, cls, tip]) =>
+    `<th class="${cls || ""} ${key === sortKey ? "sorted" : ""}" data-k="${key || ""}"${tip ? ` title="${tip}"` : ""}>${label}${key === sortKey ? (sortDir < 0 ? " ↓" : " ↑") : ""}</th>`).join("");
+}
+$("head").addEventListener("click", (e) => {
+  const k = e.target.dataset.k;
+  if (!k) return;
+  sortDir = k === sortKey ? -sortDir : (k === "symbol" ? 1 : -1);
+  sortKey = k;
+  render();
+});
+function setBasis(b) {
+  basis = b; sortKey = "pct"; sortDir = -1;
+  [...$("basis").children].forEach(x => x.classList.toggle("on", x.dataset.b === b));
+  history.replaceState(null, "", "#" + b);  // bookmarkable: /screener#forward
+}
+$("basis").addEventListener("click", (e) => {
+  const b = e.target.dataset.b;
+  if (!b || e.target.disabled) return;
+  setBasis(b);
+  render();
+});
+if (BASES[location.hash.slice(1)]) setBasis(location.hash.slice(1));
+
+// Mini chart: 5Y min–max bar with the median tick and today's dot (range stretches if today is a new extreme)
+function rangeSvg(r) {
+  const now = r[B().now], med = r[B().med];
+  const lo = Math.min(r[B().min], now), hi = Math.max(r[B().max], now);
+  const W = 112, H = 26, pad = 6;
+  const x = (v) => pad + ((v - lo) / (hi - lo || 1)) * (W - pad * 2);
+  return `<svg class="range" viewBox="0 0 ${W} ${H}">
+    <title>5Y low ${B().fmt(r[B().min])} · median ${B().fmt(med)} · high ${B().fmt(r[B().max])} · today ${B().fmt(now)}</title>
+    <line x1="${pad}" x2="${W - pad}" y1="13" y2="13" stroke="#efdbe5" stroke-width="6" stroke-linecap="round"/>
+    <line x1="${x(med)}" x2="${x(med)}" y1="6" y2="20" stroke="#76626c" stroke-width="1.5"/>
+    <circle cx="${x(now)}" cy="13" r="5.5" fill="#e0197d" stroke="#ffffff" stroke-width="2"/>
+  </svg>`;
+}
+
+// Sparkline of the history, with today's value as the final dot
+function sparkSvg(vals, now) {
+  vals = (vals || []).concat(isNum(now) ? [now] : []);
+  if (vals.filter(isNum).length < 2) return "";
+  const W = 96, H = 30, p = 3;
+  const v = vals.filter(isNum), min = Math.min(...v), max = Math.max(...v);
+  const X = (i) => p + (i / (vals.length - 1)) * (W - p * 2);
+  const Y = (y) => p + (1 - (y - min) / (max - min || 1)) * (H - p * 2);
+  let d = "", pen = false;
+  vals.forEach((y, i) => { if (!isNum(y)) { pen = false; return; } d += `${pen ? "L" : "M"}${X(i).toFixed(1)},${Y(y).toFixed(1)}`; pen = true; });
+  const last = vals[vals.length - 1];
+  return `<svg class="spark" viewBox="0 0 ${W} ${H}"><path d="${d}" fill="none" stroke="#ec5a9e" stroke-width="1.4"/>
+    ${isNum(last) ? `<circle cx="${X(vals.length - 1)}" cy="${Y(last)}" r="2.8" fill="#e0197d"/>` : ""}</svg>`;
+}
+
+const pctText = (v) => isNum(v) ? v.toFixed(0) + "th" : NA;
+
+function render() {
+  renderHead();
+  const th = +$("th").value;
+  $("thVal").textContent = th + "th";
+  if (!data) return;
+
+  const hasIbes = data.results.some(r => isNum(r.fwdPctile));
+  [...$("basis").children].forEach(b => { if (b.dataset.b !== "trailing") b.disabled = !hasIbes; });
+  if (!hasIbes && basis !== "trailing") setBasis("trailing");
+  $("src").innerHTML = hasIbes
+    ? `Forward P/E &amp; PEG: I/B/E/S consensus as of <b>${data.ibesAsOf}</b> with today's prices · trailing P/E: Yahoo, updated ${data.updated}`
+    : `No I/B/E/S data yet. Run <code>.venv/bin/python ibes.py</code>, then Refresh prices, to enable Forward P/E and PEG.`;
+
+  // Sector dropdown options come from the data
+  const sectors = [...new Set(data.results.map(r => r.sector).filter(Boolean))].sort();
+  const secSel = $("sector");
+  if (secSel.options.length !== sectors.length + 1) {
+    const keep = secSel.value;
+    secSel.innerHTML = `<option value="">All sectors</option>` + sectors.map(x => `<option>${x}</option>`).join("");
+    secSel.value = keep;
+  }
+  const listName = $("list").value, sector = secSel.value;
+  const all = data.results.filter(r =>
+    (listName === "all" || (r.lists || []).includes(listName)) && (!sector || r.sector === sector));
+  const pk = B().pct;
+  // Which of the three measures put this stock at or above the cutoff?
+  const MEASURES = [["percentile", "Trailing P/E"], ["fwdPctile", "Forward P/E"], ["pegPctile", "PEG"]];
+  const hitsOf = (r) => r.unreliable ? [] : MEASURES.filter(([k]) => isNum(r[k]) && r[k] >= th).map(([, label]) => label);
+  const hitCount = (r) => hitsOf(r).length;
+  const scored = all.filter(r => isNum(r[pk]));
+  const reliable = scored.filter(r => !r.unreliable);
+  const hits = reliable.filter(r => r[pk] >= th);
+  const all3 = all.filter(r => hitCount(r) === 3).sort((a, b) => b[pk] - a[pk]);
+  const two = all.filter(r => hitCount(r) === 2).sort((a, b) => b[pk] - a[pk]);
+  const tickerList = (arr) => `${arr.slice(0, 8).map(r => r.symbol).join(" · ")}${arr.length > 8 ? ` · +${arr.length - 8} more` : ""}`;
+
+  $("tiles").innerHTML = `
+    <div class="tile accent"><div class="k">${B().label} ≥ ${th}th percentile</div><div class="v">${hits.length} <span style="font-size:15px;color:var(--muted)">of ${reliable.length}</span></div></div>
+    <div class="tile accent" title="At or above the cutoff on trailing P/E, forward P/E and PEG"><div class="k">High on all 3 measures</div><div class="v">${all3.length} <span style="font-size:14px;color:var(--muted);font-weight:600">${tickerList(all3)}</span></div></div>
+    <div class="tile" title="At or above the cutoff on exactly two of the three measures"><div class="k">High on 2 of 3</div><div class="v">${two.length} <span style="font-size:14px;color:var(--muted);font-weight:600">${tickerList(two)}</span></div></div>
+    <div class="tile"><div class="k">Median ${B().label} percentile</div><div class="v">${reliable.length ? median(reliable.map(r => r[pk])).toFixed(0) + "th" : "—"}</div></div>
+    <div class="tile"><div class="k">Not scored on ${B().label}</div><div class="v" title="${all.filter(r => !isNum(r[pk])).map(r => r.symbol).join(", ")}">${all.length - scored.length}</div></div>`;
+
+  let rows = $("showAll").checked ? all.slice() : scored.filter(r => r[pk] >= th);
+  if (!$("showFlagged").checked) rows = rows.filter(r => !r.unreliable);
+  const minHits = +$("hitFilter").value;
+  if (minHits) rows = all.filter(r => hitCount(r) >= minHits && ($("showFlagged").checked || !r.unreliable));
+  rows.sort((a, b) => {
+    if (sortKey === "symbol") return sortDir * a.symbol.localeCompare(b.symbol);
+    const A = sortVal(a, sortKey), Bv = sortVal(b, sortKey);
+    return sortDir * ((isNum(A) ? A : -Infinity) - (isNum(Bv) ? Bv : -Infinity));
+  });
+
+  $("empty").style.display = rows.length ? "none" : "";
+  $("empty").textContent = `No stocks at or above the ${th}th percentile on ${B().label}${sector ? " in " + sector : ""}. Lower the cutoff, change the filters, or tick "Show all stocks".`;
+  $("rows").innerHTML = rows.map((r, i) => {
+    const now = r[B().now], pct = r[pk], scoredRow = isNum(pct);
+    const dim = $("showAll").checked && (!scoredRow || pct < th || r.unreliable);
+    const note = r.note || r.error;
+    const hits = hitsOf(r), n = hits.length;
+    const shortHist = `<span class="short" title="${(r.fwdNote || "").replace(/"/g, "&quot;")}">short</span>`;
+    const trio = (k, b) => `<td class="trio ${isNum(r[k]) && r[k] >= th ? "hot" : ""} ${basis === b ? "sel" : ""}">${
+      isNum(r[k]) ? pctText(r[k]) : (b !== "trailing" && r.fwdNote ? shortHist : NA)}</td>`;
+    const growthTip = isNum(r.ltg) ? `Long-term growth estimate: ${r.ltg.toFixed(1)}% (${r.ltgAnalysts ?? "?"} analysts)` : "";
+    return `<tr class="${dim ? "dim" : ""} ${n === 3 ? "hit3" : n === 2 ? "hit2" : ""}" data-s="${r.symbol}">
+      <td class="left" style="color:var(--muted)">${i + 1}</td>
+      <td class="left" title="${[r.sector, r.industry].filter(Boolean).join(" · ")}"><span class="tk">${r.symbol}</span><span class="nm">${r.name}</span>${n >= 2 ? `<span class="pill ${n === 2 ? "two" : ""}" title="At or above the ${th}th percentile on: ${hits.join(", ")}">${n === 3 ? "ALL 3" : "2 OF 3"}</span>` : ""}${note ? `<span class="warn" title="${note.replace(/"/g, "&quot;")}">⚠</span>` : ""}</td>
+      <td><b>${isNum(now) ? B().fmt(now) : (r.error ? NA : NM)}</b></td>
+      <td>${isNum(r[B().med]) ? B().fmt(r[B().med]) : NA}</td>
+      <td>${scoredRow && isNum(now) && isNum(r[B().min]) ? rangeSvg(r) : NA}</td>
+      <td>${scoredRow ? `<span class="pbar"><span class="track"><span class="fill" style="width:${pct}%;display:block"></span></span><span class="num ${pct >= th ? "hot" : ""}">${pct.toFixed(0)}th</span></span>` : NA}</td>
+      ${trio("percentile", "trailing")}${trio("fwdPctile", "forward")}${trio("pegPctile", "peg")}
+      <td title="${growthTip}">${isNum(r.growth) ? `<span class="${r.growth >= 0 ? "up" : "down"}">${r.growth >= 0 ? "+" : ""}${(r.growth * 100).toFixed(0)}%</span>` : NA}</td>
+      <td>${sparkSvg(r[B().spark], basis === "trailing" ? null : now)}</td>
+      <td class="aicell"><button class="ai-ico ${aiOpen.has(r.symbol) ? "on" : ""}" data-ai="${r.symbol}" title="AI summary of ${r.symbol}">${SPARK_ICON}</button></td>
+    </tr>${aiOpen.has(r.symbol) ? aiDetailRow(r.symbol) : ""}`;
+  }).join("");
+}
+
+function median(a) { const s = a.slice().sort((x, y) => x - y), m = s.length >> 1; return s.length % 2 ? s[m] : (s[m - 1] + s[m]) / 2; }
+
+// ---------- AI summary per row (compact explainer, gpt-6-luna via Portkey) ----------
+const SPARK_ICON = `<svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l1.9 5.6L19.5 9.5l-5.6 1.9L12 17l-1.9-5.6L4.5 9.5l5.6-1.9z"/><path d="M19 14l.9 2.6 2.6.9-2.6.9L19 21l-.9-2.6-2.6-.9 2.6-.9z" opacity=".7"/></svg>`;
+const aiOpen = new Set();   // rows whose summary is expanded
+const aiCache = {};         // symbol -> {state: "loading" | "done" | "error", html}
+
+function aiDetailRow(sym) {
+  const c = aiCache[sym] || { state: "loading" };
+  const body = c.state === "loading"
+    ? `<div class="ai-thinking"><span class="dot"></span>Summarizing ${sym}… (about 6 seconds)</div>`
+    : c.state === "error" ? `<div class="ai-err">${c.html}</div>` : `<div class="ai-out">${c.html}</div>`;
+  return `<tr class="ai-detail" data-detail="${sym}"><td colspan="${COLS().length}"><div class="ai-box">
+      <div class="ai-box-head"><b>AI summary · ${sym}</b>
+        <a href="/#${sym}">Full analysis on Lookup →</a>
+        <span>gpt-6-luna · AI can make mistakes · not investment advice</span>
+        <button class="x" data-close="${sym}" title="Close">×</button></div>
+      ${body}</div></td></tr>`;
+}
+
+function redrawDetail(sym) {
+  const old = document.querySelector(`tr.ai-detail[data-detail="${sym}"]`);
+  if (old) old.outerHTML = aiDetailRow(sym);
+}
+
+async function toggleAI(sym) {
+  const btn = document.querySelector(`.ai-ico[data-ai="${sym}"]`);
+  if (aiOpen.has(sym)) {
+    aiOpen.delete(sym);
+    document.querySelector(`tr.ai-detail[data-detail="${sym}"]`)?.remove();
+    btn?.classList.remove("on");
+    return;
+  }
+  aiOpen.add(sym);
+  btn?.classList.add("on");
+  btn?.closest("tr").insertAdjacentHTML("afterend", aiDetailRow(sym));
+  if (aiCache[sym] && aiCache[sym].state !== "error") return;   // already have it (or it's on its way)
+  aiCache[sym] = { state: "loading" };
+  redrawDetail(sym);
+  try {
+    const res = await fetch(`/api/agent/explain/${encodeURIComponent(sym)}`, {
+      method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ compact: true }) });
+    const d = await res.json();
+    if (!res.ok || d.error) throw new Error(d.error || "Request failed");
+    aiCache[sym] = { state: "done", html: renderMarkdown(d.markdown) };
+  } catch (err) {
+    aiCache[sym] = { state: "error", html: "AI request failed: " + String(err.message).replace(/</g, "&lt;") + " · click ✦ again to retry" };
+  }
+  redrawDetail(sym);
+}
+
+$("rows").addEventListener("click", (e) => {
+  const ico = e.target.closest(".ai-ico");
+  if (ico) { toggleAI(ico.dataset.ai); return; }
+  const x = e.target.closest("[data-close]");
+  if (x) { toggleAI(x.dataset.close); return; }
+  if (e.target.closest("tr.ai-detail")) return;            // clicks inside a summary don't navigate
+  const tr = e.target.closest("tr[data-s]");
+  if (tr) location.href = "/#" + tr.dataset.s;
+});
+["th", "showAll", "showFlagged", "hitFilter", "list", "sector"].forEach(id => $(id).addEventListener("input", render));
+
+// ---------- Data loading + background refresh ----------
+async function poll() {
+  const res = await fetch("/api/screener").then(r => r.json());
+  const job = res.job;
+  if (res.data) { data = res.data; $("updated").textContent = `Prices updated ${data.updated} · snapshot #${data.runs}`; }
+  $("refresh").disabled = job.running;
+  $("refresh").textContent = job.running ? `Scanning ${job.done}/${job.total}…` : "Refresh prices";
+  $("progress").style.display = job.running ? "block" : "none";
+  $("progress").firstElementChild.style.width = job.total ? (job.done / job.total * 100) + "%" : "0";
+  if (job.error) $("updated").textContent = "Refresh failed: " + job.error;
+  render();
+  if (!data && !job.running) {
+    $("empty").style.display = ""; $("empty").textContent = "No data yet. Click “Refresh prices” to scan.";
+  }
+  if (job.running) setTimeout(poll, 700);
+}
+
+$("refresh").addEventListener("click", async () => {
+  const res = await fetch("/api/screener/refresh", { method: "POST" });
+  const d = await res.json().catch(() => ({}));
+  if (!res.ok && d.error) { $("updated").textContent = d.error; return; }
+  poll();
+});
+
+poll().then(() => { if (!data) $("refresh").click(); });
+</script>
+</body>
+</html>

@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Ask AI · StockLens</title>
+<style>
+  :root {
+    --bg: #ffffff; --panel: #ffffff; --panel-2: #fdf3f8; --border: #efdbe5;
+    --pink: #e0197d; --pink-soft: #ec5a9e; --pink-dim: #f2a3c7;
+    --text: #1d1218; --muted: #76626c; --up: #15803d; --down: #dc2626;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--text); font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, Roboto, sans-serif; font-size: 15px; line-height: 1.45; }
+  .wrap { max-width: 980px; margin: 0 auto; padding: 28px 24px 60px; }
+  header { display: flex; align-items: center; gap: 28px; margin-bottom: 26px; }
+  .logo { font-size: 22px; font-weight: 800; letter-spacing: -0.5px; color: var(--text); text-decoration: none; }
+  .logo span { color: var(--pink); }
+  nav { display: flex; gap: 6px; }
+  nav a { color: var(--muted); text-decoration: none; font-weight: 700; font-size: 14px; padding: 7px 14px; border-radius: 999px; }
+  nav a:hover { color: var(--pink); }
+  nav a.on { color: #ffffff; background: var(--pink); }
+  h1 { margin: 0; font-size: 30px; letter-spacing: -0.5px; }
+  h1 em { color: var(--pink); font-style: normal; }
+  h3 { font-size: 13px; text-transform: uppercase; letter-spacing: 1.2px; color: var(--pink); margin: 0 0 10px; }
+  .sub { color: var(--muted); margin: 6px 0 20px; }
+  .askbox { display: flex; gap: 10px; }
+  .askbox textarea { flex: 1; font: inherit; font-size: 16px; padding: 13px 16px; border: 1.5px solid var(--border); border-radius: 12px; resize: vertical; min-height: 52px; outline: none; color: var(--text); }
+  .askbox textarea:focus { border-color: var(--pink); box-shadow: 0 0 0 3px rgba(224, 25, 125, 0.15); }
+  .examples { display: flex; flex-wrap: wrap; gap: 8px; margin: 12px 0 8px; }
+  .examples button { background: var(--panel-2); border: 1px solid var(--border); color: var(--text); border-radius: 999px; padding: 6px 12px; font-size: 13px; cursor: pointer; text-align: left; }
+  .examples button:hover { border-color: var(--pink); color: var(--pink); }
+  .qa { margin-top: 18px; }
+  .q { font-weight: 700; font-size: 16px; margin-bottom: 2px; }
+  details { margin-top: 10px; }
+  summary { color: var(--muted); font-size: 13px; cursor: pointer; }
+  pre { background: var(--panel-2); border: 1px solid var(--border); border-radius: 10px; padding: 10px 12px; font-size: 12.5px; white-space: pre-wrap; word-break: break-word; margin: 8px 0 0; }
+  pre.bad { border-color: #f5b5b5; }
+  .note { color: var(--muted); font-size: 13px; margin-top: 26px; }
+  .note code { color: var(--pink-soft); }
+  footer { color: #b3a3ab; font-size: 12px; margin-top: 30px; text-align: center; }
+</style>
+<script src="/static/md.js"></script>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <a class="logo" href="/">Stock<span>Lens</span></a>
+    <nav><a href="/">Lookup</a><a href="/screener">P/E Screener</a><a href="/ask" class="on">Ask AI</a></nav>
+  </header>
+
+  <h1>Ask the <em>database</em></h1>
+  <p class="sub">Ask a question in plain English. The AI agent writes SQL queries against <code>stocklens.db</code>
+    (the screener's latest snapshot of 516 stocks, plus earnings and I/B/E/S estimates), runs them read-only,
+    and answers from the results. You can open "Queries it ran" to check its work.</p>
+
+  <div class="askbox">
+    <textarea id="q" rows="2" placeholder="e.g. Which tech stocks are high on all 3 measures but still expect 15%+ growth?"></textarea>
+    <button class="ai-btn" id="ask">Ask</button>
+  </div>
+  <div class="examples" id="examples"></div>
+
+  <div id="answers"></div>
+
+  <p class="note">How it works: the agent (gpt-6-luna via Portkey) has two tools, <code>get_schema</code> and
+    <code>run_sql</code>. The database is opened <b>read-only</b> and only single SELECT queries are allowed, so
+    it can look but never change anything. It answers from the latest screener snapshot; click Refresh prices on
+    the screener for current numbers. AI can make mistakes, so check key figures. Not investment advice.</p>
+  <footer>Data: Yahoo Finance (prices, earnings) · LSEG I/B/E/S via WRDS (analyst estimates)</footer>
+</div>
+
+<script>
+const $ = (id) => document.getElementById(id);
+const EXAMPLES = [
+  "Which stocks are high on all 3 measures at the 80th percentile?",
+  "Which tech stocks are high on all 3 measures but still expect 15%+ growth?",
+  "Which Dow 30 stocks are cheapest versus their own 5-year forward P/E history?",
+  "Average forward P/E percentile by sector, most expensive first",
+  "Which Nasdaq-100 stocks have the highest expected EPS growth, and how are they valued?",
+  "Show S&P 500 stocks with forward P/E below their 5-year median and PEG under 1",
+];
+$("examples").innerHTML = EXAMPLES.map(e => `<button>${e}</button>`).join("");
+$("examples").addEventListener("click", (e) => {
+  if (e.target.tagName === "BUTTON") { $("q").value = e.target.textContent; ask(); }
+});
+$("ask").addEventListener("click", ask);
+$("q").addEventListener("keydown", (e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); ask(); } });
+
+// Shareable questions: /ask#q=Which%20stocks...  opens the page and asks it
+if (location.hash.startsWith("#q=")) {
+  $("q").value = decodeURIComponent(location.hash.slice(3));
+  setTimeout(ask, 0);
+}
+
+const escapeHtml = (s) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+
+async function ask() {
+  const question = $("q").value.trim();
+  if (!question || $("ask").disabled) return;
+  const block = document.createElement("div");
+  block.className = "ai-panel qa";
+  block.innerHTML = `<div class="q">${escapeHtml(question)}</div><div class="out"></div>`;
+  $("answers").prepend(block);
+  const d = await runAgent("/api/agent/ask", { question }, block.querySelector(".out"), $("ask"),
+                           "Writing and running SQL queries… (usually 5–15 seconds)");
+  if (d && d.queries && d.queries.length) {
+    const det = document.createElement("details");
+    det.innerHTML = `<summary>Queries it ran (${d.queries.length})</summary>` +
+      d.queries.map(q => `<pre class="${q.ok ? "" : "bad"}">${escapeHtml(q.sql)}${q.ok ? "" : "\n-- this query errored; the agent retried"}</pre>`).join("");
+    block.appendChild(det);
+  }
+  $("q").value = "";
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,21 @@
+# Render blueprint: New → Blueprint → pick this repo. Render reads the Python version from .python-version.
+services:
+  - type: web
+    name: stocklens
+    runtime: python
+    plan: free
+    buildCommand: pip install -r requirements.txt
+    # One worker keeps the in-memory caches, refresh job and spending guard consistent; threads handle concurrency.
+    startCommand: gunicorn app:app --bind 0.0.0.0:$PORT --workers 1 --threads 8 --timeout 180
+    healthCheckPath: /
+    envVars:
+      - key: PORTKEY_API_KEY
+        sync: false          # you paste the real key in the Render dashboard; it is never stored in the repo
+      - key: AI_CALLS_PER_HOUR
+        value: "10"
+      - key: AI_DAILY_CALL_CAP
+        value: "300"
+      - key: AI_DAILY_TOKEN_CAP
+        value: "2000000"
+      - key: AI_GUARD_SALT
+        generateValue: true  # random salt for hashing visitor IPs
