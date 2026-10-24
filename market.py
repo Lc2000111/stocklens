@@ -17,14 +17,111 @@ def clean(value):
     return value
 
 
+def _quote(symbol):
+    """Yahoo's quote service (v7): price, P/E, EPS, market cap, 52-week range, dividends, analyst rating."""
+    from yfinance.data import YfData
+    j = YfData().get_raw_json("https://query1.finance.yahoo.com/v7/finance/quote",
+                              params={"symbols": symbol, "formatted": "false"})
+    res = (j.get("quoteResponse") or {}).get("result") or []
+    return res[0] if res else {}
+
+
+def _ttm(df, row, n=4):
+    """Sum of the last n quarters for one statement row (None if not available)."""
+    if df is None or df.empty or row not in df.index:
+        return None
+    vals = df.loc[row].dropna()
+    return float(vals.iloc[:n].sum()) if len(vals) >= n else None
+
+
+def _latest(df, *rows):
+    for row in rows:
+        if df is not None and not df.empty and row in df.index:
+            vals = df.loc[row].dropna()
+            if len(vals):
+                return float(vals.iloc[0])
+    return None
+
+
+def _fallback_info(symbol, ticker):
+    """Rebuild the company metrics from the quote service + financial statements.
+
+    Used when Yahoo's main company-metrics service (quoteSummary, behind `ticker.info`) returns nothing.
+    It refuses requests from cloud servers such as Render, while these other Yahoo services still answer.
+    Not available this way: beta, analyst price targets and the business description."""
+    q = _quote(symbol)
+    if not q or q.get("regularMarketPrice") is None:
+        return {}
+    rating = (q.get("averageAnalystRating") or "").split(" - ")[-1].strip().lower().replace(" ", "_") or None
+    info = {
+        "symbol": q.get("symbol"), "longName": q.get("longName"), "shortName": q.get("shortName"),
+        "exchange": q.get("fullExchangeName") or q.get("exchange"), "currency": q.get("currency"), "quoteType": q.get("quoteType"),
+        "currentPrice": q.get("regularMarketPrice"), "regularMarketPrice": q.get("regularMarketPrice"),
+        "previousClose": q.get("regularMarketPreviousClose"), "regularMarketChange": q.get("regularMarketChange"),
+        "regularMarketChangePercent": q.get("regularMarketChangePercent"),
+        "fiftyTwoWeekHigh": q.get("fiftyTwoWeekHigh"), "fiftyTwoWeekLow": q.get("fiftyTwoWeekLow"),
+        "fiftyDayAverage": q.get("fiftyDayAverage"), "twoHundredDayAverage": q.get("twoHundredDayAverage"),
+        "marketCap": q.get("marketCap"), "trailingPE": q.get("trailingPE"), "forwardPE": q.get("forwardPE"),
+        "priceToBook": q.get("priceToBook"), "trailingEps": q.get("epsTrailingTwelveMonths"),
+        "forwardEps": q.get("epsForward"), "epsCurrentYear": q.get("epsCurrentYear"),
+        "dividendYield": q.get("dividendYield"), "dividendRate": q.get("trailingAnnualDividendRate"),
+        "recommendationKey": rating,
+    }
+    # Financial statements (Yahoo's fundamentals service): trailing-12-month totals and latest balance sheet
+    try:
+        qi, qb, qc = ticker.quarterly_income_stmt, ticker.quarterly_balance_sheet, ticker.quarterly_cashflow
+    except Exception:
+        qi = qb = qc = None
+    rev, gp, op, ni = (_ttm(qi, r) for r in ("Total Revenue", "Gross Profit", "Operating Income", "Net Income"))
+    ebitda, fcf = _ttm(qi, "EBITDA"), _ttm(qc, "Free Cash Flow")
+    cash = _latest(qb, "Cash Cash Equivalents And Short Term Investments", "Cash And Cash Equivalents")
+    debt, equity = _latest(qb, "Total Debt"), _latest(qb, "Stockholders Equity")
+    assets, ca, cl = _latest(qb, "Total Assets"), _latest(qb, "Current Assets"), _latest(qb, "Current Liabilities")
+    div = lambda a, b: a / b if a is not None and b not in (None, 0) else None
+
+    def yoy(row):  # latest quarter vs the same quarter a year earlier
+        if qi is None or qi.empty or row not in qi.index:
+            return None
+        v = qi.loc[row].dropna()
+        return v.iloc[0] / v.iloc[4] - 1 if len(v) >= 5 and v.iloc[4] > 0 else None
+
+    cap = info["marketCap"]
+    ev = cap + (debt or 0) - (cash or 0) if cap else None
+    info.update({
+        "totalRevenue": rev, "ebitda": ebitda, "freeCashflow": fcf, "totalCash": cash, "totalDebt": debt,
+        "grossMargins": div(gp, rev), "operatingMargins": div(op, rev), "profitMargins": div(ni, rev),
+        "returnOnEquity": div(ni, equity), "returnOnAssets": div(ni, assets),
+        "debtToEquity": div(debt, equity) * 100 if div(debt, equity) is not None else None,  # Yahoo reports D/E in percent
+        "currentRatio": div(ca, cl), "revenueGrowth": yoy("Total Revenue"), "earningsGrowth": yoy("Net Income"),
+        "priceToSalesTrailing12Months": div(cap, rev), "enterpriseValue": ev,
+        "enterpriseToRevenue": div(ev, rev), "enterpriseToEbitda": div(ev, ebitda),
+    })
+    try:  # sector / industry from our own database when we have the stock
+        import db
+        with db.connect() as c:
+            row = c.execute("select sector, industry from stocks where symbol = ?", (symbol,)).fetchone()
+        if row:
+            info.update(sector=row["sector"], industry=row["industry"])
+    except Exception:
+        pass
+    info["dataSource"] = "fallback"
+    return info
+
+
 def stock_data(symbol):
-    ticker = yf.Ticker(symbol.upper())
+    symbol = symbol.upper()
+    ticker = yf.Ticker(symbol)
     try:
         info = ticker.info
-    except Exception as e:
-        return {"error": f"Could not fetch {symbol}: {e}"}, 502
+    except Exception:
+        info = {}
     if not info or (info.get("regularMarketPrice") is None and info.get("currentPrice") is None):
-        return {"error": f"No data found for '{symbol.upper()}'."}, 404
+        try:
+            info = _fallback_info(symbol, ticker)
+        except Exception as e:
+            return {"error": f"Could not fetch {symbol}: {e}"}, 502
+    if not info or (info.get("regularMarketPrice") is None and info.get("currentPrice") is None):
+        return {"error": f"No data found for '{symbol}'."}, 404
 
     keys = [
         # Profile
@@ -49,6 +146,7 @@ def stock_data(symbol):
         "targetMeanPrice", "targetHighPrice", "targetLowPrice", "recommendationKey", "numberOfAnalystOpinions",
     ]
     data = {k: clean(info.get(k)) for k in keys}
+    data["dataSource"] = info.get("dataSource", "full")
 
     # Annual revenue / net income with year-over-year growth
     annual = []

@@ -355,6 +355,7 @@ function render(d) {
       <div>
         <h1>${d.longName || d.shortName || d.symbol}</h1>
         <div class="meta"><span class="tag">${d.symbol}</span> · ${d.exchange ?? ""} ${d.sector ? "· " + d.sector : ""} ${d.industry ? "· " + d.industry : ""}</div>
+        ${d.dataSource === "fallback" ? `<div class="meta" style="font-size:12px" title="Yahoo's main company-metrics service doesn't answer cloud servers, so margins, growth, cash and debt are computed from the last four quarterly financial statements. Beta, analyst price targets and the company description aren't available in this mode; run the app locally for the full set.">Some metrics computed from quarterly financial statements (hosted mode) · may differ slightly from Yahoo's</div>` : ""}
       </div>
       <div class="price">
         <div class="now">${fmt.price(price, cur)}</div>
