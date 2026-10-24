@@ -66,9 +66,10 @@ All use **gpt-6-luna** through Portkey with the course key only.
 
 ## Safety
 
-- **Spending guard** (`guard.py`): each visitor is limited to 10 AI requests per hour, and the site to 300 requests
-  and 2M tokens per day. Every request is logged with token counts in the `ai_usage` table. Over-limit requests get
-  HTTP 429 with a friendly message. Visitors are identified by a salted hash of their IP; raw IPs are never stored.
+- **Usage log** (`guard.py`): every AI request is logged with its token counts in the `ai_usage` table. Visitors
+  are identified by a salted hash of their IP; raw IPs are never stored. Optional limits (per-visitor hourly and
+  site-wide daily caps) are built in but **off by default**; set `AI_CALLS_PER_HOUR`, `AI_DAILY_CALL_CAP` or
+  `AI_DAILY_TOKEN_CAP` to turn them on (over-limit requests get HTTP 429).
 - **Read-only SQL**: the Ask agent's database connection is opened read-only (`mode=ro`), and only a single
   `SELECT`/`WITH` statement is accepted, so prompt injection can't modify or delete data.
 - **Bounded agent loop**: at most 8 steps per question.

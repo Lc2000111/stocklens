@@ -11,11 +11,6 @@ services:
     envVars:
       - key: PORTKEY_API_KEY
         sync: false          # you paste the real key in the Render dashboard; it is never stored in the repo
-      - key: AI_CALLS_PER_HOUR
-        value: "10"
-      - key: AI_DAILY_CALL_CAP
-        value: "300"
-      - key: AI_DAILY_TOKEN_CAP
-        value: "2000000"
+      # AI usage limits are off by default; add AI_CALLS_PER_HOUR / AI_DAILY_CALL_CAP / AI_DAILY_TOKEN_CAP to turn them on
       - key: AI_GUARD_SALT
         generateValue: true  # random salt for hashing visitor IPs

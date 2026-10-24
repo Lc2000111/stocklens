@@ -1,12 +1,14 @@
-"""Spending guard for the AI features — the app's defense against overspending and abuse.
+"""Usage log and optional spending limits for the AI features.
 
-The site is public, and every AI button spends the owner's Portkey (gpt-6-luna) allowance, so:
-
-  1. Per-visitor limit   AI_CALLS_PER_HOUR requests per visitor per rolling hour (default 10)
-  2. Site-wide caps      AI_DAILY_CALL_CAP requests and AI_DAILY_TOKEN_CAP tokens per day (defaults 300 / 2,000,000)
-  3. Usage log           every AI request is recorded in the database (table ai_usage): which agent, how many
+  1. Usage log (always on)  every AI request is recorded in the database (table ai_usage): which agent, how many
                          LLM calls, input / cached / output / reasoning tokens, time taken, success or failure.
                          This is also where the report's measured token counts come from.
+  2. Optional limits (OFF by default; this is a class assignment). Set any of these environment variables
+     to a positive number to turn a limit on, e.g. on Render if the link is ever shared widely:
+       AI_CALLS_PER_HOUR    requests per visitor per rolling hour
+       AI_DAILY_CALL_CAP    requests per day, site-wide
+       AI_DAILY_TOKEN_CAP   tokens per day, site-wide
+     Over-limit requests get HTTP 429 with a friendly message.
 
 Visitors are identified by a salted SHA-256 hash of their IP address, so raw IPs are never stored.
 A request is "reserved" before the AI runs, so a burst of clicks can't slip past the limits.
@@ -20,9 +22,9 @@ import time
 
 import db
 
-PER_VISITOR_PER_HOUR = int(os.environ.get("AI_CALLS_PER_HOUR", 10))
-DAILY_CALL_CAP = int(os.environ.get("AI_DAILY_CALL_CAP", 300))
-DAILY_TOKEN_CAP = int(os.environ.get("AI_DAILY_TOKEN_CAP", 2_000_000))
+PER_VISITOR_PER_HOUR = int(os.environ.get("AI_CALLS_PER_HOUR", 0))   # 0 = no limit
+DAILY_CALL_CAP = int(os.environ.get("AI_DAILY_CALL_CAP", 0))
+DAILY_TOKEN_CAP = int(os.environ.get("AI_DAILY_TOKEN_CAP", 0))
 SALT = os.environ.get("AI_GUARD_SALT", "stocklens-mgt409")
 
 _lock = threading.Lock()
@@ -40,16 +42,16 @@ class LimitReached(Exception):
 
 
 def reserve(visitor, agent):
-    """Check the limits and, if OK, record the request as started. Returns the usage-row id."""
+    """Check any limits that are switched on and record the request as started. Returns the usage-row id."""
     with _lock:
         s = db.ai_usage_summary(visitor)
-        if s["visitor_last_hour"] >= PER_VISITOR_PER_HOUR:
+        if PER_VISITOR_PER_HOUR and s["visitor_last_hour"] >= PER_VISITOR_PER_HOUR:
             raise LimitReached(f"You've used {s['visitor_last_hour']} AI requests in the last hour "
                                f"(limit {PER_VISITOR_PER_HOUR}). Please try again a little later.")
-        if s["calls_today"] >= DAILY_CALL_CAP:
+        if DAILY_CALL_CAP and s["calls_today"] >= DAILY_CALL_CAP:
             raise LimitReached(f"The site has reached today's limit of {DAILY_CALL_CAP} AI requests. "
                                "AI features will be back tomorrow; everything else still works.")
-        if s["tokens_today"] >= DAILY_TOKEN_CAP:
+        if DAILY_TOKEN_CAP and s["tokens_today"] >= DAILY_TOKEN_CAP:
             raise LimitReached(f"The site has used today's AI budget ({DAILY_TOKEN_CAP:,} tokens). "
                                "AI features will be back tomorrow; everything else still works.")
         return db.ai_usage_start(visitor, agent)
