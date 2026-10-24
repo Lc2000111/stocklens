@@ -17,30 +17,45 @@ answer questions about the data. MGT 409 (AI Foundations for Managers) final pro
 
 ## Run it locally (about 5 minutes)
 
-Requires Python 3.11+ (tested on 3.13 and 3.14).
+**Requires Python 3.11 or newer** (tested on 3.13 and 3.14). Check with `python3 --version`.
+
+**1. Get the code and install** (macOS / Linux):
 
 ```bash
-git clone <this repo URL> stocklens
+git clone https://github.com/Lc2000111/stocklens.git
 cd stocklens
 python3 -m venv .venv
-source .venv/bin/activate          # Windows: .venv\Scripts\activate
+source .venv/bin/activate
 pip install -r requirements.txt
 ```
 
-**API key.** The AI features need `PORTKEY_API_KEY` (gpt-6-luna via Portkey). The app looks for a `.env` file
-**first in this folder, then in the folder above it**, so a shared `.env` one level up works as-is. Otherwise:
+Windows (PowerShell): the same, but use `python -m venv .venv` and `.venv\Scripts\activate`.
+
+**2. API key.** The AI features need `PORTKEY_API_KEY` (gpt-6-luna via Portkey). The app looks for a `.env` file
+**first in this folder, then in the folder above it**. A shared `.env` one level up (e.g. `submissions/.env`)
+works with no changes. Otherwise create one here:
 
 ```bash
-cp .env.example .env               # then put your key after PORTKEY_API_KEY=
+cp .env.example .env      # then put the key after PORTKEY_API_KEY=
 ```
 
-**Start the app:**
+**3. Start it:**
 
 ```bash
 python app.py
 ```
 
-Open **http://127.0.0.1:5050**. Everything works without a key except the three AI features.
+Then open **http://127.0.0.1:5050**. The included database (`stocklens.db`) already holds all 516 stocks, so
+everything works right away. No WRDS account is needed; without a key, everything except the AI features works.
+
+**Troubleshooting**
+
+| Problem | Fix |
+|---|---|
+| `Address already in use` / port 5050 busy | `PORT=5051 python app.py` (Windows: `$env:PORT=5051; python app.py`) and open that port |
+| AI answer says `PORTKEY_API_KEY not found` | Put `.env` in this folder or the one above it, then restart `python app.py` |
+| Lookup page slow on first load | The first stock takes a few seconds while market news and prices load; later pages are cached |
+| `pip install` fails on an old Python | Install Python 3.11+ from python.org and recreate `.venv` |
 
 ## Data
 
@@ -49,6 +64,11 @@ Open **http://127.0.0.1:5050**. Everything works without a key except the three 
 | Yahoo Finance (via `yfinance`) | Prices, company metrics, quarterly earnings, news, most-active stocks | Live; screener: **Refresh prices** button (about 20 s for 516 stocks) |
 | LSEG I/B/E/S via WRDS (Yale license) | Monthly analyst consensus EPS → forward P/E and PEG history | Monthly, needs a WRDS login: `python wrds_login.py` once, then `python ibes.py` |
 | Wikipedia | S&P 500 member list | `python update_index_lists.py` |
+| Yahoo company details (snapshot) | Description, beta, analyst targets, margins, debt on the **hosted** site | `python snapshot_profiles.py` on a home connection, then commit `stocklens.db` |
+
+**Why the snapshot:** Yahoo's company-metrics service refuses cloud servers (Render gets HTTP 401), while its
+price-history and financial-statement services still answer. So on the hosted site, prices and price-based
+ratios are live, and slow-changing company details come from a saved snapshot. Running locally gets everything live.
 
 A ready-to-use snapshot is included in **`stocklens.db`** (SQLite, ~15 MB), so the app runs immediately with no
 WRDS account. It holds the stock lists, cached quarterly earnings, I/B/E/S estimates, screener snapshots, daily

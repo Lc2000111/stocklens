@@ -10,6 +10,8 @@ Tables
   earnings_status when each stock's earnings were last downloaded
   daily_attention the most-watched stocks for each market session (Lookup page "In focus")
   ai_usage        one row per AI request: agent, tokens, time, success (spending guard + tokenomics)
+  company_profiles full Yahoo company details per stock, saved from a home connection (snapshot_profiles.py)
+                  so the hosted site can show them even though Yahoo blocks that service for cloud servers
 
 View
   latest_results  the newest snapshot joined with company info: the easy table to query
@@ -105,6 +107,11 @@ create table if not exists ai_usage (
     detail           text
 );
 create index if not exists idx_ai_usage_time on ai_usage(started_at);
+create table if not exists company_profiles (
+    symbol      text primary key,
+    fetched_at  text not null default (datetime('now', 'localtime')),
+    info        text not null          -- JSON: the fields the Lookup page uses
+);
 create table if not exists ibes_estimates (
     symbol      text not null,
     ibes_ticker text not null,
@@ -313,6 +320,31 @@ def ai_usage_summary(visitor):
         calls, tokens = c.execute("""select count(*), coalesce(sum(input_tokens + output_tokens), 0) from ai_usage
                                      where started_at >= date('now')""").fetchone()
     return {"visitor_last_hour": mine, "calls_today": calls, "tokens_today": tokens}
+
+
+# ---------- company profiles (snapshot of Yahoo company details) ----------
+
+def save_profile(symbol, info):
+    init()
+    with connect() as c:
+        c.execute("""insert into company_profiles(symbol, info) values (?, ?)
+                     on conflict(symbol) do update set info = excluded.info, fetched_at = datetime('now', 'localtime')""",
+                  (symbol, json.dumps(info, default=str)))
+
+
+def load_profile(symbol):
+    """(info_dict, fetched_at) or (None, None)."""
+    init()
+    with connect() as c:
+        row = c.execute("select info, fetched_at from company_profiles where symbol = ?", (symbol,)).fetchone()
+    return (json.loads(row["info"]), row["fetched_at"]) if row else (None, None)
+
+
+def profiles_fresh(max_age_days):
+    init()
+    with connect() as c:
+        return {r[0] for r in c.execute("select symbol from company_profiles where fetched_at >= datetime('now', 'localtime', ?)",
+                                        (f"-{max_age_days} days",))}
 
 
 # ---------- I/B/E/S ----------

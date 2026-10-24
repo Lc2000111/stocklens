@@ -145,4 +145,6 @@ def history(symbol):
 
 
 if __name__ == "__main__":
-    app.run(host="127.0.0.1", port=5050, debug=True)
+    port = int(os.environ.get("PORT", 5050))   # e.g. PORT=5051 python app.py if 5050 is busy
+    print(f"\n  StockLens is running → open http://127.0.0.1:{port}\n")
+    app.run(host="127.0.0.1", port=port, debug=True)

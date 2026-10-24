@@ -17,6 +17,38 @@ def clean(value):
     return value
 
 
+# The company fields the Lookup page shows (also what snapshot_profiles.py saves)
+INFO_KEYS = [
+    # Profile
+    "symbol", "longName", "shortName", "sector", "industry", "exchange", "currency", "website", "longBusinessSummary", "quoteType",
+    # Price
+    "currentPrice", "regularMarketPrice", "previousClose", "regularMarketChange", "regularMarketChangePercent",
+    "fiftyTwoWeekHigh", "fiftyTwoWeekLow", "fiftyDayAverage", "twoHundredDayAverage", "beta",
+    # Valuation
+    "marketCap", "enterpriseValue", "trailingPE", "forwardPE", "trailingPegRatio", "priceToBook",
+    "priceToSalesTrailing12Months", "enterpriseToEbitda", "enterpriseToRevenue",
+    # Earnings
+    "trailingEps", "forwardEps", "epsCurrentYear",
+    # Growth
+    "revenueGrowth", "earningsGrowth", "earningsQuarterlyGrowth",
+    # Profitability
+    "grossMargins", "operatingMargins", "profitMargins", "returnOnEquity", "returnOnAssets",
+    # Financial health
+    "totalRevenue", "ebitda", "freeCashflow", "totalCash", "totalDebt", "debtToEquity", "currentRatio",
+    # Dividends
+    "dividendYield", "dividendRate", "payoutRatio",
+    # Analysts
+    "targetMeanPrice", "targetHighPrice", "targetLowPrice", "recommendationKey", "numberOfAnalystOpinions",
+]
+
+LIVE_FIELDS = {
+    "currentPrice", "regularMarketPrice", "previousClose", "regularMarketChange", "regularMarketChangePercent",
+    "fiftyTwoWeekHigh", "fiftyTwoWeekLow", "fiftyDayAverage", "twoHundredDayAverage", "marketCap", "enterpriseValue",
+    "trailingPE", "forwardPE", "priceToBook", "priceToSalesTrailing12Months", "enterpriseToEbitda",
+    "enterpriseToRevenue", "dividendYield", "trailingEps", "forwardEps",
+}
+
+
 def _quote(symbol):
     """Yahoo's quote service (v7): price, P/E, EPS, market cap, 52-week range, dividends, analyst rating."""
     from yfinance.data import YfData
@@ -167,6 +199,30 @@ def _fallback_info(symbol, ticker):
     return info
 
 
+def _merge_snapshot(symbol, live):
+    """Hosted mode: combine live, price-dependent fields with the saved Yahoo company details.
+
+    The snapshot is taken from a home connection (snapshot_profiles.py), where Yahoo's company-metrics service
+    still answers. Price-dependent fields (LIVE_FIELDS) always come from today's live data; slow-changing ones
+    (description, beta, analyst targets, margins, debt, growth, ...) come from the snapshot when it has them."""
+    try:
+        import db
+        saved, fetched_at = db.load_profile(symbol)
+    except Exception:
+        saved, fetched_at = None, None
+    if not saved or not live:
+        return live
+    merged = dict(live)
+    for k, v in saved.items():
+        if v is None:
+            continue
+        if k not in LIVE_FIELDS or merged.get(k) is None:
+            merged[k] = v
+    merged["dataSource"] = "snapshot"
+    merged["snapshotDate"] = (fetched_at or "")[:10]
+    return merged
+
+
 def stock_data(symbol):
     symbol = symbol.upper()
     ticker = yf.Ticker(symbol)
@@ -179,33 +235,13 @@ def stock_data(symbol):
             info = _fallback_info(symbol, ticker)
         except Exception as e:
             return {"error": f"Could not fetch {symbol}: {e}"}, 502
+        info = _merge_snapshot(symbol, info)
     if not info or (info.get("regularMarketPrice") is None and info.get("currentPrice") is None):
         return {"error": f"No data found for '{symbol}'."}, 404
 
-    keys = [
-        # Profile
-        "symbol", "longName", "shortName", "sector", "industry", "exchange", "currency", "website", "longBusinessSummary", "quoteType",
-        # Price
-        "currentPrice", "regularMarketPrice", "previousClose", "regularMarketChange", "regularMarketChangePercent",
-        "fiftyTwoWeekHigh", "fiftyTwoWeekLow", "fiftyDayAverage", "twoHundredDayAverage", "beta",
-        # Valuation
-        "marketCap", "enterpriseValue", "trailingPE", "forwardPE", "trailingPegRatio", "priceToBook",
-        "priceToSalesTrailing12Months", "enterpriseToEbitda", "enterpriseToRevenue",
-        # Earnings
-        "trailingEps", "forwardEps", "epsCurrentYear",
-        # Growth
-        "revenueGrowth", "earningsGrowth", "earningsQuarterlyGrowth",
-        # Profitability
-        "grossMargins", "operatingMargins", "profitMargins", "returnOnEquity", "returnOnAssets",
-        # Financial health
-        "totalRevenue", "ebitda", "freeCashflow", "totalCash", "totalDebt", "debtToEquity", "currentRatio",
-        # Dividends
-        "dividendYield", "dividendRate", "payoutRatio",
-        # Analysts
-        "targetMeanPrice", "targetHighPrice", "targetLowPrice", "recommendationKey", "numberOfAnalystOpinions",
-    ]
-    data = {k: clean(info.get(k)) for k in keys}
+    data = {k: clean(info.get(k)) for k in INFO_KEYS}
     data["dataSource"] = info.get("dataSource", "full")
+    data["snapshotDate"] = info.get("snapshotDate")
 
     # Annual revenue / net income with year-over-year growth
     annual = []
