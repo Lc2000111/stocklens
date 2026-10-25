@@ -7,6 +7,8 @@ StockLens screens the **S&P 500, Nasdaq-100 and Dow 30** (516 stocks) and shows 
 forward P/E and PEG** sit against **its own 5-year history**. AI agents explain the numbers in plain English and
 answer questions about the data. MGT 409 (AI Foundations for Managers) final project · Josh Liang.
 
+**Project write-up:** [`report.html`](report.html) (report) · [`slides.html`](slides.html) (reveal.js deck). Download and open in a browser.
+
 ## What it does
 
 | Page | What you get |
@@ -47,7 +49,8 @@ cp .env.example .env      # then put the key after PORTKEY_API_KEY=
 python app.py
 ```
 
-Then open **http://127.0.0.1:5050**. The included database (`stocklens.db`) already holds all 516 stocks, so
+Then open **http://127.0.0.1:5050**. The very first start after installing can take ~20 seconds while Python compiles
+the libraries; wait for the line `StockLens is running → open http://127.0.0.1:5050`. The included database (`stocklens.db`) already holds all 516 stocks, so
 everything works right away. No WRDS account is needed; without a key, everything except the AI features works.
 
 **Troubleshooting**
