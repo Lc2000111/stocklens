@@ -174,9 +174,9 @@
       <button data-b="peg" title="Forward P/E ÷ expected next-year EPS growth · monthly history (I/B/E/S)">PEG</button>
     </span></span>
     <span><span class="ctl-label">Show</span><span class="seg dir" id="dir">
-      <button data-d="expensive" class="on" title="Stocks near the top of their own 5-year range">Expensive</button>
+      <button data-d="all" class="on" title="Every stock, from cheapest to most expensive">All</button>
+      <button data-d="expensive" title="Stocks near the top of their own 5-year range">Expensive</button>
       <button data-d="cheap" title="Stocks near the bottom of their own 5-year range">Cheap</button>
-      <button data-d="all" title="Every stock, from most expensive to cheapest">All</button>
     </span></span>
     <label title="How extreme a stock must be vs. its own history to count as expensive (top N%) or cheap (bottom N%)">Most extreme <b id="thVal">20%</b><input type="range" id="th" min="5" max="50" step="5" value="20" /></label>
     <select id="list" title="Which stock list to show">
@@ -234,7 +234,7 @@ const $ = (id) => document.getElementById(id);
 const isNum = (v) => typeof v === "number" && isFinite(v);
 const NA = '<span style="color:#b3a3ab">—</span>';
 const NM = '<span title="Not meaningful: negative/zero earnings or expected growth under 2%" style="color:var(--muted)">n/m</span>';
-let data = null, basis = "trailing", dir = "expensive", sortKey = "pct", sortDir = -1;
+let data = null, basis = "trailing", dir = "all", sortKey = "pct", sortDir = 1;   // default: All, cheapest first
 
 // What each "Rank by" option reads from a result row
 const BASES = {
@@ -278,13 +278,13 @@ $("head").addEventListener("click", (e) => {
   render();
 });
 // Sort modes for the percentile: highest first or lowest first
-let sortMode = "high";
+let sortMode = "low";
 function setSortMode(m) {
   sortMode = m;
   sortKey = "pct"; sortDir = m === "low" ? 1 : -1;
 }
-// Bookmarkable views: /screener#forward, /screener#peg-cheap, /screener#trailing-all
-const updateHash = () => history.replaceState(null, "", "#" + basis + (dir !== "expensive" ? "-" + dir : ""));
+// Bookmarkable views: /screener#forward (All), /screener#peg-cheap, /screener#trailing-expensive
+const updateHash = () => history.replaceState(null, "", "#" + basis + (dir !== "all" ? "-" + dir : ""));
 function setBasis(b) {
   basis = b;
   if (typeof setSortMode === "function") setSortMode(dir === "expensive" ? "high" : "low");
