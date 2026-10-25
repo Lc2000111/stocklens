@@ -36,6 +36,8 @@
   .spacer { flex: 1; }
   .updated { color: var(--muted); font-size: 13px; }
   button.primary { background: var(--pink); color: #ffffff; border: none; font-weight: 800; padding: 9px 16px; border-radius: 10px; cursor: pointer; font-size: 14px; }
+  button.stop { background: #fff; color: var(--down); border: 1.5px solid #f5b5b5; font-weight: 800; padding: 8px 14px; border-radius: 10px; cursor: pointer; font-size: 14px; display: none; }
+  button.stop:hover { border-color: var(--down); }
   button.primary:disabled { opacity: 0.5; cursor: wait; }
   .progress { height: 4px; background: var(--border); border-radius: 2px; overflow: hidden; margin: -6px 0 16px; display: none; }
   .progress div { height: 100%; background: var(--pink); width: 0; transition: width 0.2s; }
@@ -170,6 +172,7 @@
     <label><input type="checkbox" id="showFlagged" /> Include spin-off-affected stocks</label>
     <span class="spacer"></span>
     <span class="updated" id="updated"></span>
+    <button class="stop" id="stop" title="Stop the scan; the previous snapshot stays">Stop</button>
     <button class="primary" id="refresh">Refresh prices</button>
   </div>
   <div class="progress" id="progress"><div></div></div>
@@ -476,16 +479,25 @@ async function poll() {
   const job = res.job;
   if (res.data) { data = res.data; $("updated").textContent = `Prices updated ${data.updated} · snapshot #${data.runs}`; }
   $("refresh").disabled = job.running;
-  $("refresh").textContent = job.running ? `Scanning ${job.done}/${job.total}…` : "Refresh prices";
+  $("refresh").textContent = job.running ? "Scanning…" : "Refresh prices";
+  $("stop").style.display = job.running ? "inline-block" : "none";
+  $("stop").disabled = job.stop;
   $("progress").style.display = job.running ? "block" : "none";
   $("progress").firstElementChild.style.width = job.total ? (job.done / job.total * 100) + "%" : "0";
-  if (job.error) $("updated").textContent = "Refresh failed: " + job.error;
+  if (job.running) $("updated").textContent = `${job.step || "Scanning…"}${job.done ? ` · ${job.done} of ${job.total}` : ""}`;
+  else if (job.error) $("updated").textContent = job.error;
   render();
   if (!data && !job.running) {
     $("empty").style.display = ""; $("empty").textContent = "No data yet. Click “Refresh prices” to scan.";
   }
   if (job.running) setTimeout(poll, 700);
 }
+
+$("stop").addEventListener("click", async () => {
+  $("stop").disabled = true;
+  await fetch("/api/screener/stop", { method: "POST" }).catch(() => {});
+  poll();
+});
 
 $("refresh").addEventListener("click", async () => {
   const res = await fetch("/api/screener/refresh", { method: "POST" });

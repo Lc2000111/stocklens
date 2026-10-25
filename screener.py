@@ -44,6 +44,11 @@ def clean(v, digits=2):
 
 EARNINGS_MAX_AGE_DAYS = 7   # quarterly EPS changes at most once a quarter; refetch weekly
 PRICE_BATCH = 100           # tickers per Yahoo price download
+SCAN_TIME_LIMIT = 10 * 60   # seconds: a scan that runs longer than this stops itself
+
+
+class Stopped(Exception):
+    """Raised when a scan is stopped (Stop button or time limit). The previous snapshot is kept."""
 NY = "America/New_York"
 
 
@@ -81,22 +86,25 @@ def ttm_eps_series(rows):
     return ttm.dropna()
 
 
-def download_prices(symbols, start):
-    """Daily closes + split records for many tickers in a few batched requests (instead of one per stock)."""
+def download_prices(symbols, start, check=lambda step: None):
+    """Daily closes + split records for many tickers in a few batched requests (instead of one per stock).
+    `check(step)` is called before each batch so the scan can report progress or be stopped."""
     closes, splits = {}, {}
-    for i in range(0, len(symbols), PRICE_BATCH):
+    n_batches = (len(symbols) + PRICE_BATCH - 1) // PRICE_BATCH
+    for bi, i in enumerate(range(0, len(symbols), PRICE_BATCH), 1):
         batch = symbols[i:i + PRICE_BATCH]
         df = None
         for attempt in range(3):
+            check(f"Downloading prices (batch {bi} of {n_batches})…")
             try:
                 # auto_adjust=False: actual (split-adjusted) closes, not dividend-adjusted, to match reported EPS
                 df = yf.download(batch, start=start, auto_adjust=False, actions=True, group_by="ticker",
-                                 threads=True, progress=False)
+                                 threads=True, progress=False, timeout=30)
             except Exception:
                 df = None
             if df is not None and not df.empty:
                 break
-            time.sleep(10 * (attempt + 1))
+            time.sleep(5 * (attempt + 1))
         if df is None or df.empty:
             continue
         if df.index.tz is not None:
@@ -206,11 +214,28 @@ def fill_profiles(workers=4):
     return len(missing)
 
 
-def run_screen(symbols=None, progress=None, workers=3):
-    """Refresh data and save a snapshot to the database. `progress(done, total)` reports progress.
+def run_screen(symbols=None, progress=None, workers=3, should_stop=lambda: False):
+    """Refresh data and save a snapshot to the database.
+    `progress(done, total, step)` reports progress; `should_stop()` returning True stops the scan
+    (raises Stopped) and keeps the previous snapshot. The scan also stops itself after SCAN_TIME_LIMIT.
 
     Steps: (1) sync stock lists, (2) download quarterly earnings only for stocks whose saved copy is
     over a week old, (3) download prices in batches of 100, (4) compute everything locally."""
+    started = time.time()
+    state = {"done": 0, "total": 0, "step": "Starting…"}
+
+    def check(step=None):
+        if step:
+            state["step"] = step
+        if should_stop():
+            raise Stopped("Scan stopped. The previous snapshot is still shown.")
+        if time.time() - started > SCAN_TIME_LIMIT:
+            raise Stopped(f"Scan took longer than {SCAN_TIME_LIMIT // 60} minutes (Yahoo may be slow or throttling), "
+                          "so it was stopped. The previous snapshot is still shown.")
+        if progress:
+            progress(state["done"], state["total"], state["step"])
+
+    check("Updating stock lists…")
     db.sync_universe(universe.LISTS)
     fill_profiles()
     symbols = symbols or list(UNIVERSE)
@@ -219,21 +244,23 @@ def run_screen(symbols=None, progress=None, workers=3):
     # Share classes that borrow another class's earnings don't need their own download
     earnings_syms = sorted({universe.EARNINGS_FROM.get(s, s) for s in symbols})
     stale = db.earnings_stale(earnings_syms, EARNINGS_MAX_AGE_DAYS)
-    total = len(stale) + len(symbols)
-    done = 0
-    if progress:
-        progress(done, total)
-    with ThreadPoolExecutor(max_workers=workers) as pool:
-        for _ in as_completed([pool.submit(fetch_earnings, s) for s in stale]):
-            done += 1
-            if progress:
-                progress(done, total)
+    state["total"] = len(stale) + len(symbols)
+    if stale:
+        check(f"Downloading earnings for {len(stale)} stocks…")
+        with ThreadPoolExecutor(max_workers=workers) as pool:
+            for _ in as_completed([pool.submit(fetch_earnings, s) for s in stale]):
+                state["done"] += 1
+                check()
 
     start = (pd.Timestamp.today().normalize() - pd.DateOffset(years=YEARS + 1)).strftime("%Y-%m-%d")
-    closes, splits = download_prices(symbols, start)
+    closes, splits = download_prices(symbols, start, check)
+    if len(closes) < len(symbols) / 2:
+        raise Stopped(f"Yahoo returned prices for only {len(closes)} of {len(symbols)} stocks (it may be throttling "
+                      "this server), so nothing was saved. The previous snapshot is still shown.")
     earnings = db.load_earnings(earnings_syms)
 
     results = []
+    check("Calculating percentiles…")
     for sym in symbols:
         try:
             src = universe.EARNINGS_FROM.get(sym, sym)
@@ -243,9 +270,9 @@ def run_screen(symbols=None, progress=None, workers=3):
             results.append(r)
         except Exception as e:
             results.append({"symbol": sym, "name": UNIVERSE.get(sym, sym), "error": str(e)[:200]})
-        done += 1
-        if progress:
-            progress(done, total)
+        state["done"] += 1
+        if state["done"] % 25 == 0:
+            check()
     results.sort(key=lambda r: r.get("percentile") if r.get("percentile") is not None else -1, reverse=True)
     db.save_run(results, ibes_cache["asOf"] if ibes_cache else None)
     return db.latest_run()
@@ -257,7 +284,7 @@ def load_cache():
 
 
 if __name__ == "__main__":
-    data = run_screen(progress=lambda d, n: print(f"\r{d}/{n}", end="", flush=True))
+    data = run_screen(progress=lambda d, n, step="": print(f"\r{d}/{n} {step:<45}", end="", flush=True))
     print(f"\n\n{'Ticker':<7}{'P/E':>8}{'Pctile':>8}{'5y min':>8}{'median':>8}{'5y max':>8}  note")
     for r in data["results"]:
         if "error" in r:

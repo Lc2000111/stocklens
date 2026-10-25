@@ -23,7 +23,7 @@ app = Flask(__name__, static_folder="static")
 app.config["MAX_CONTENT_LENGTH"] = 60 * 1024 * 1024   # whole upload; each file is also capped at 5 MB
 
 # Background state for the P/E screener (it takes ~15 seconds to scan every stock)
-screen_job = {"running": False, "done": 0, "total": 0, "error": None}
+screen_job = {"running": False, "done": 0, "total": 0, "step": "", "error": None, "stop": False}
 
 
 @app.route("/")
@@ -135,17 +135,27 @@ def screener_refresh():
             return jsonify({"job": screen_job, "error": f"Prices were refreshed {max(0, round(age_min))} min ago. "
                                                          f"Try again in about {wait} min."}), 429
     if not screen_job["running"]:
-        screen_job.update(running=True, done=0, total=len(screener.UNIVERSE), error=None)
+        screen_job.update(running=True, done=0, total=len(screener.UNIVERSE), step="Starting…", error=None, stop=False)
 
         def work():
             try:
-                screener.run_screen(progress=lambda d, n: screen_job.update(done=d, total=n))
+                screener.run_screen(progress=lambda d, n, step: screen_job.update(done=d, total=n, step=step),
+                                    should_stop=lambda: screen_job["stop"])
             except Exception as e:
                 screen_job["error"] = str(e)
             finally:
-                screen_job["running"] = False
+                screen_job.update(running=False, stop=False)
 
         threading.Thread(target=work, daemon=True).start()
+    return jsonify({"job": screen_job})
+
+
+@app.route("/api/screener/stop", methods=["POST"])
+def screener_stop():
+    """Ask a running scan to stop at its next checkpoint (within a few seconds). Nothing partial is saved."""
+    if screen_job["running"]:
+        screen_job["stop"] = True
+        screen_job["step"] = "Stopping…"
     return jsonify({"job": screen_job})
 
 
