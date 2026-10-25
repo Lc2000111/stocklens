@@ -1,7 +1,7 @@
 """AI agents for StockLens — gpt-6-luna via Portkey (PORTKEY_API_KEY from .env; never printed).
 
 1. explain_stock(symbol, compact)   Stock explainer: plain-English summary of valuation, growth, trend and
-                                    risks. Full version on the Lookup page; compact (~120 words) version in
+                                    risks. Full version on the Stock page; compact (~120 words) version in
                                     the screener's expandable rows.
 2. ask(question)                    Ask the database: a tool-calling agent that writes read-only SQL
                                     against stocklens.db, runs it, and answers with the results.

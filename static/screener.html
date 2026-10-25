@@ -133,7 +133,7 @@
 <div class="wrap">
   <header>
     <a class="logo" href="/">Stock<span>Lens</span></a>
-    <nav><a href="/">Lookup</a><a href="/screener" class="on">P/E Screener</a><a href="/ask">Ask AI</a><a href="/statement">Income Statement</a></nav>
+    <nav><a href="/">Market</a><a href="/stock">Stock</a><a href="/screener" class="on">P/E Screener</a><a href="/ask">Ask AI</a><a href="/statement">Income Statement</a></nav>
   </header>
 
   <h1>Cheap or expensive <em>vs. their own history</em></h1>
@@ -200,7 +200,7 @@
     <p><b>Percentile</b> = share of the past 5 years (days for trailing, months for forward and PEG) with a value at or below today's. Today's forward P/E and PEG use today's price with the latest I/B/E/S consensus. I/B/E/S arrives monthly with a lag; the date is shown above the table.</p>
     <p><b>Expensive / Cheap.</b> "Most extreme 20%" means a stock counts as <b>expensive</b> at the 80th percentile or above, and <b>cheap</b> at the 20th or below, against its own 5-year history.</p>
     <p><b>Badges</b> count how many of the three measures (trailing P/E, forward P/E and PEG) agree. <span class="pill" style="margin:0">ALL 3 HIGH</span> means the stock looks expensive against its own history whichever way you measure it, and <span class="pill low" style="margin:0">ALL 3 LOW</span> means it looks cheap on all three. Outlined <b>2 OF 3</b> badges mean two agree; hover a badge to see which. One measure on its own can mislead: a high trailing P/E may just mean earnings are about to jump, and a low one may come from a one-time gain inflating EPS. So the more measures agree, the stronger the signal. PEG shows n/m (and can't count) when expected growth is under 2%.</p>
-    <p><b>Caveats.</b> Trailing EPS uses the <em>adjusted</em> figures analysts track, so it can differ from the GAAP P/E on the Lookup page. A high percentile can mean the price ran up <em>or</em> earnings/estimates fell; a low one can mean the price fell <em>or</em> earnings rose. Cheap isn't automatically a bargain: it can reflect real problems. Stocks with a spin-off in the window (<span class="warn">⚠</span>) are hidden by default because their earnings before and after aren't comparable. Forward and PEG percentiles need at least 24 months of I/B/E/S history; newer listings show "short". Refresh the I/B/E/S data monthly with <code>.venv/bin/python ibes.py</code>.</p>
+    <p><b>Caveats.</b> Trailing EPS uses the <em>adjusted</em> figures analysts track, so it can differ from the GAAP P/E on the Stock page. A high percentile can mean the price ran up <em>or</em> earnings/estimates fell; a low one can mean the price fell <em>or</em> earnings rose. Cheap isn't automatically a bargain: it can reflect real problems. Stocks with a spin-off in the window (<span class="warn">⚠</span>) are hidden by default because their earnings before and after aren't comparable. Forward and PEG percentiles need at least 24 months of I/B/E/S history; newer listings show "short". Refresh the I/B/E/S data monthly with <code>.venv/bin/python ibes.py</code>.</p>
     <p><b>Data storage.</b> Everything is saved in a SQLite database, <code>stocklens.db</code>. Each "Refresh prices" adds a snapshot, so you can see how valuations change over time. Edit the stock lists in <code>universe.py</code>; update the S&amp;P 500 list with <code>.venv/bin/python update_index_lists.py</code>.</p>
   </div>
   <footer>Trailing data: Yahoo Finance via yfinance · Forward data: LSEG I/B/E/S via WRDS · not investment advice</footer>
@@ -442,7 +442,7 @@ function aiDetailRow(sym) {
     : c.state === "error" ? `<div class="ai-err">${c.html}</div>` : `<div class="ai-out">${c.html}</div>`;
   return `<tr class="ai-detail" data-detail="${sym}"><td colspan="${COLS().length}"><div class="ai-box">
       <div class="ai-box-head"><b>AI summary · ${sym}</b>
-        <a href="/#${sym}">Full analysis on Lookup →</a>
+        <a href="/stock#${sym}">Full analysis on the Stock tab →</a>
         <span>gpt-6-luna · AI can make mistakes · not investment advice</span>
         <button class="x" data-close="${sym}" title="Close">×</button></div>
       ${body}</div></td></tr>`;
@@ -486,7 +486,7 @@ $("rows").addEventListener("click", (e) => {
   if (x) { toggleAI(x.dataset.close); return; }
   if (e.target.closest("tr.ai-detail")) return;            // clicks inside a summary don't navigate
   const tr = e.target.closest("tr[data-s]");
-  if (tr) location.href = "/#" + tr.dataset.s;
+  if (tr) location.href = "/stock#" + tr.dataset.s;
 });
 ["th", "showFlagged", "hitFilter", "list", "sector"].forEach(id => $(id).addEventListener("input", render));
 

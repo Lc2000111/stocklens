@@ -11,7 +11,8 @@ answer questions about the data. MGT 409 (AI Foundations for Managers) final pro
 
 | Page | What you get |
 |---|---|
-| **Lookup** (`/`) | **Market today**: index moves, top headlines with pictures, and the stock getting the **most market attention** (unusual volume × money traded × price move × news mentions), which loads automatically. Then that stock's metrics, price chart with 20/50/100/200-day moving averages, RSI, annual financials, and an **"Explain with AI"** summary. |
+| **Market** (`/`) | **Market today**: index moves, top headlines with pictures, and the stock getting the **most market attention** (unusual volume × money traded × price move × news mentions), with why it's in focus and runners-up. |
+| **Stock** (`/stock`) | Search any company. You get metrics, a price chart with 20/50/100/200-day moving averages, RSI, annual financials, and an **"Explain with AI"** summary. It opens on today's most-watched stock; `/stock#AAPL` opens a specific one. |
 | **P/E Screener** (`/screener`) | Every stock ranked by percentile vs. its own 5 years on trailing P/E, forward P/E or PEG. Show the **expensive** end, the **cheap** end, or **all** stocks, using a "most extreme N%" cutoff. Badges show when **2 or 3 measures agree** (pink **HIGH** / green **LOW**). Filter by index and sector. Click **✦** on any row for an inline AI summary. |
 | **Income Statement** (`/statement`) | Upload bank and credit-card statements (**CSV or PDF**, several at once) and get a **personal income statement**: income, expenses by category, net income and savings rate, month by month. Card payments and transfers between your own accounts are excluded so nothing is counted twice. Re-categorize any transaction, download CSVs, and get AI insights from the category totals. **Try the sample statements** button: three fictional statements in `sample_statements/`. |
 | **Ask AI** (`/ask`) | Ask questions in plain English ("Which tech stocks are high on all 3 measures but still expect 15%+ growth?"). An agent writes read-only SQL against the database, runs it, and answers. You can see the queries it ran. |
@@ -55,7 +56,7 @@ everything works right away. No WRDS account is needed; without a key, everythin
 |---|---|
 | `Address already in use` / port 5050 busy | `PORT=5051 python app.py` (Windows: `$env:PORT=5051; python app.py`) and open that port |
 | AI answer says `PORTKEY_API_KEY not found` | Put `.env` in this folder or the one above it, then restart `python app.py` |
-| Lookup page slow on first load | The first stock takes a few seconds while market news and prices load; later pages are cached |
+| Stock page slow on first load | The first stock takes a few seconds while market news and prices load; later pages are cached |
 | `pip install` fails on an old Python | Install Python 3.11+ from python.org and recreate `.venv` |
 
 ## Data
@@ -80,8 +81,8 @@ WRDS account. It holds the stock lists, cached quarterly earnings, I/B/E/S estim
 
 All use **gpt-6-luna** through Portkey with the course key only.
 
-1. **Stock explainer** (Lookup page and the screener's ✦ rows). It gets the stock's metrics, price trend and
-   5-year percentiles, then writes a full analysis (Lookup) or a 4-bullet brief (screener). 1 model call.
+1. **Stock explainer** (Stock page and the screener's ✦ rows). It gets the stock's metrics, price trend and
+   5-year percentiles, then writes a full analysis (Stock page) or a 4-bullet brief (screener). 1 model call.
 2. **Ask the database** (`/ask`). A tool-calling agent with two tools, `get_schema` and `run_sql`. It loops
    (up to 8 steps): it writes SQL, reads the results, fixes errors, and answers with a table. Usually 2–4 model calls.
 

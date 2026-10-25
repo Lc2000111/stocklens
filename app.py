@@ -31,6 +31,11 @@ def index():
     return send_from_directory("static", "index.html")
 
 
+@app.route("/stock")
+def stock_page():
+    return send_from_directory("static", "stock.html")
+
+
 @app.route("/screener")
 def screener_page():
     return send_from_directory("static", "screener.html")
