@@ -146,6 +146,53 @@
 
   .panel, .tile { box-shadow: 0 1px 3px rgba(29, 18, 24, 0.06); }
 
+  /* Valuation vs. its own 5-year history */
+  .val-head { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; margin-bottom: 12px; }
+  .val-head h3 { margin: 0; }
+  .verdict { font-weight: 800; font-size: 16px; }
+  .verdict.hi { color: var(--pink); } .verdict.lo { color: var(--up); } .verdict.mid { color: var(--text); }
+  .val-cards { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
+  .vcard { border: 1px solid var(--border); border-radius: 12px; padding: 12px 14px; background: #fff; }
+  .vcard.hi { border-color: var(--pink-dim); background: linear-gradient(160deg, #fde7f1, #fff); }
+  .vcard.lo { border-color: #86efac; background: linear-gradient(160deg, #ecfdf3, #fff); }
+  .vcard .k { color: var(--muted); font-size: 12px; text-transform: uppercase; letter-spacing: 0.8px; }
+  .vcard .row { display: flex; align-items: baseline; justify-content: space-between; margin-top: 4px; }
+  .vcard .now { font-size: 22px; font-weight: 800; font-variant-numeric: tabular-nums; }
+  .vcard .pc { font-size: 18px; font-weight: 800; }
+  .vcard.hi .pc { color: var(--pink); } .vcard.lo .pc { color: var(--up); } .vcard.mid .pc { color: var(--muted); }
+  .vcard .bar { height: 7px; background: var(--panel-2); border-radius: 4px; margin: 8px 0 6px; overflow: hidden; }
+  .vcard .bar span { display: block; height: 100%; border-radius: 4px; background: #c9b8c2; }
+  .vcard.hi .bar span { background: linear-gradient(90deg, var(--pink-dim), var(--pink)); }
+  .vcard.lo .bar span { background: linear-gradient(90deg, #86efac, var(--up)); }
+  .vcard .sub { color: var(--muted); font-size: 12.5px; }
+  .val-charts { display: grid; grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr); gap: 16px; margin-top: 16px; }
+  .val-charts h4 { margin: 0 0 4px; font-size: 13px; color: var(--muted); font-weight: 700; }
+  .val-charts svg { width: 100%; height: 170px; display: block; }
+  .mini-seg { display: inline-flex; gap: 4px; margin-left: 8px; }
+  .mini-seg button { border: 1px solid var(--border); background: #fff; color: var(--muted); border-radius: 999px; font-size: 11.5px; font-weight: 700; padding: 2px 9px; cursor: pointer; }
+  .mini-seg button.on { background: var(--pink); color: #fff; border-color: var(--pink); }
+  .val-foot { color: var(--muted); font-size: 12.5px; margin-top: 10px; }
+  .val-foot a { color: var(--pink); font-weight: 700; text-decoration: none; }
+
+
+  /* ---------- Phones ---------- */
+  @media (max-width: 700px) {
+    .wrap { padding: 16px 14px 40px; }
+    header { flex-wrap: wrap; gap: 10px 16px; margin-bottom: 16px; }
+    header nav, header .nav { order: 3; width: 100%; overflow-x: auto; flex-wrap: nowrap; scrollbar-width: none; -webkit-overflow-scrolling: touch; }
+    header nav::-webkit-scrollbar, header .nav::-webkit-scrollbar { display: none; }
+    header nav a, header .nav a { white-space: nowrap; flex: none; padding: 6px 12px; }
+    h1 { font-size: 24px; }
+    .sub { font-size: 14px; }
+    header .search { order: 2; width: 100%; min-width: 0; flex: 1 1 100%; }
+    .tiles { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .tile .v { font-size: 19px; }
+    .grid { grid-template-columns: minmax(0, 1fr); }
+    .val-cards, .val-charts { grid-template-columns: minmax(0, 1fr); }
+    .hero .price { text-align: left; }
+    .chart-head { flex-wrap: wrap; gap: 8px; }
+    .panel table { display: block; overflow-x: auto; }
+  }
 </style>
 <script src="/static/md.js"></script>
 </head>
@@ -372,6 +419,8 @@ function render(d) {
       <div class="tile"><div class="k">Market cap</div><div class="v">${fmt.money(d.marketCap, cur)}</div></div>
     </div>
 
+    <div class="panel" id="valuation" style="margin-top:16px"><div class="mkt-loading" style="color:var(--muted)">Loading valuation history…</div></div>
+
     <div class="ai-panel">
       <div class="ai-head">
         <h3>AI summary</h3>
@@ -442,6 +491,8 @@ function render(d) {
       ${d.website ? `<p><a href="${d.website}" target="_blank" rel="noopener">${d.website}</a></p>` : ""}
     </div>` : ""}
   `;
+
+  loadValuation(d.symbol);
 
   $("aiExplain").addEventListener("click", () =>
     runAgent(`/api/agent/explain/${encodeURIComponent(d.symbol)}`, {}, $("aiOut"), $("aiExplain"),
@@ -595,9 +646,10 @@ function drawCharts() {
 
   // ---- RSI chart ----
   let xLabels = "";
-  for (let i = 0; i < 5; i++) {
-    const idx = Math.round(i * (pts.length - 1) / 4);
-    xLabels += `<text x="${X(idx)}" y="${RH - 5}" text-anchor="${i === 0 ? "start" : i === 4 ? "end" : "middle"}" fill="#76626c" font-size="11">${pts[idx].date}</text>`;
+  const nLab = W < 560 ? 3 : 5;   // fewer date labels on narrow (phone) screens so they don't overlap
+  for (let i = 0; i < nLab; i++) {
+    const idx = Math.round(i * (pts.length - 1) / (nLab - 1));
+    xLabels += `<text x="${X(idx)}" y="${RH - 5}" text-anchor="${i === 0 ? "start" : i === nLab - 1 ? "end" : "middle"}" fill="#76626c" font-size="11">${pts[idx].date}</text>`;
   }
   rsiSvg.innerHTML = `
     <rect x="${padL}" y="${RY(70)}" width="${W - padL - padR}" height="${RY(30) - RY(70)}" fill="#e0197d" fill-opacity="0.06"/>
@@ -649,6 +701,101 @@ function drawCharts() {
 window.addEventListener("resize", () => { clearTimeout(window._rz); window._rz = setTimeout(drawCharts, 200); });
 
 // Start with ticker from URL hash, or AAPL
+// ---------- Valuation vs. its own 5-year history (from the P/E screener's latest snapshot) ----------
+// 1 → 1st, 2 → 2nd, 3 → 3rd, 11 → 11th, 22 → 22nd
+const ordinal = (n) => { const v = Math.round(n), t = v % 100;
+  return v + (t >= 11 && t <= 13 ? "th" : ({ 1: "st", 2: "nd", 3: "rd" })[v % 10] || "th"); };
+const zoneOf = (p) => !isNum(p) ? "na" : p >= 80 ? "hi" : p <= 20 ? "lo" : "mid";
+let valData = null, valChart = "trailing";
+
+async function loadValuation(sym) {
+  const res = await fetch(`/api/valuation/${encodeURIComponent(sym)}`).catch(() => null);
+  if (!current || current.symbol !== sym || !$("valuation")) return;
+  if (!res || !res.ok) {
+    $("valuation").innerHTML = `<div class="val-head"><h3>Valuation vs. its own history</h3></div>
+      <div class="val-foot">${sym} isn't one of the screener's 516 stocks (S&amp;P 500, Nasdaq-100, Dow 30), so there's no 5-year P/E history for it yet.</div>`;
+    return;
+  }
+  valData = await res.json();
+  renderValuation();
+}
+
+function renderValuation() {
+  const v = valData;
+  const M = [["Trailing P/E", v.pe, v.percentile, v.peMedian, v.peMin, v.peMax, (x) => x.toFixed(1) + "x"],
+             ["Forward P/E", v.fwdPE, v.fwdPctile, v.fwdMedian, v.fwdMin, v.fwdMax, (x) => x.toFixed(1) + "x"],
+             ["PEG", v.peg, v.pegPctile, v.pegMedian, v.pegMin, v.pegMax, (x) => x.toFixed(2)]];
+  const zones = M.map(m => zoneOf(m[2]));
+  const nHi = zones.filter(z => z === "hi").length, nLo = zones.filter(z => z === "lo").length, nScored = zones.filter(z => z !== "na").length;
+  const verdict = nHi >= 2 ? ["hi", `Expensive vs. its own history on ${nHi === 3 ? "all 3" : "2 of 3"} measures`]
+                : nLo >= 2 ? ["lo", `Cheap vs. its own history on ${nLo === 3 ? "all 3" : "2 of 3"} measures`]
+                : nHi === 1 && nLo === 0 ? ["hi", "Expensive on one measure; the others are in their normal range"]
+                : nLo === 1 && nHi === 0 ? ["lo", "Cheap on one measure; the others are in their normal range"]
+                : nScored ? ["mid", "Within its normal range vs. its own history"] : ["mid", "Not enough history to judge"];
+  const card = ([label, now, pct, med, lo, hi, f], z) => `
+    <div class="vcard ${z}"><div class="k">${label}</div>
+      <div class="row"><span class="now">${isNum(now) ? f(now) : "n/m"}</span><span class="pc">${isNum(pct) ? ordinal(pct) : "—"}</span></div>
+      <div class="bar"><span style="width:${isNum(pct) ? Math.max(pct, 2) : 0}%"></span></div>
+      <div class="sub">${isNum(med) ? `5Y median ${f(med)}` : ""}${isNum(lo) && isNum(hi) ? ` · range ${f(lo)}–${f(hi)}` : ""}${!isNum(pct) && label !== "Trailing P/E" && v.fwdNote ? " · short history" : ""}</div>
+    </div>`;
+  $("valuation").innerHTML = `
+    <div class="val-head"><h3>Valuation vs. its own 5-year history</h3><span class="verdict ${verdict[0]}">${verdict[1]}</span></div>
+    <div class="val-cards">${M.map((m, i) => card(m, zones[i])).join("")}</div>
+    <div class="val-charts">
+      <div><h4>${valChart === "trailing" ? "Trailing" : "Forward"} P/E over 5 years
+        <span class="mini-seg"><button data-vc="trailing" class="${valChart === "trailing" ? "on" : ""}">Trailing</button><button data-vc="forward" class="${valChart === "forward" ? "on" : ""}" ${v.fwdSpark && v.fwdSpark.length > 1 ? "" : "disabled"}>Forward</button></span></h4>
+        <svg id="peChart"></svg></div>
+      <div><h4>Trailing P/E percentile, week by week (past year)</h4><svg id="pctChart"></svg></div>
+    </div>
+    <div class="val-foot">Percentile = share of the past 5 years with a value at or below today's · ≥80th expensive, ≤20th cheap ·
+      snapshot ${v.snapshot}${v.ibesAsOf ? ` · forward data I/B/E/S ${v.ibesAsOf}` : ""} · <a href="/screener#trailing-all">Compare in the P/E Screener →</a></div>`;
+  $("valuation").querySelectorAll("[data-vc]").forEach(b => b.addEventListener("click", () => { valChart = b.dataset.vc; renderValuation(); }));
+  drawPeChart(valChart === "trailing" ? v.spark : (v.fwdSpark || []).concat(isNum(v.fwdPE) ? [v.fwdPE] : []),
+              valChart === "trailing" ? v.peMedian : v.fwdMedian);
+  drawPctChart(v.pctHistory || []);
+}
+
+function drawPeChart(vals, med) {
+  const svg = $("peChart"), W = svg.clientWidth || 600, H = 170, L = 42, R = 10, T = 10, B = 22;
+  svg.setAttribute("viewBox", `0 0 ${W} ${H}`);
+  const v = (vals || []).filter(isNum);
+  if (v.length < 2) { svg.innerHTML = `<text x="50%" y="50%" text-anchor="middle" fill="#76626c" font-size="12">No history</text>`; return; }
+  let lo = Math.min(...v, med ?? Infinity), hi = Math.max(...v, med ?? -Infinity);
+  const pad = (hi - lo) * 0.08 || 1; lo -= pad; hi += pad;
+  const X = (i) => L + i / (vals.length - 1) * (W - L - R), Y = (y) => T + (1 - (y - lo) / (hi - lo)) * (H - T - B);
+  let d = "", pen = false;
+  vals.forEach((y, i) => { if (!isNum(y)) { pen = false; return; } d += `${pen ? "L" : "M"}${X(i).toFixed(1)},${Y(y).toFixed(1)}`; pen = true; });
+  const last = vals[vals.length - 1];
+  svg.innerHTML = `
+    ${[hi - pad, (hi + lo) / 2, lo + pad].map(t => `<text x="${L - 6}" y="${Y(t) + 4}" text-anchor="end" fill="#76626c" font-size="10.5">${t.toFixed(t < 10 ? 1 : 0)}x</text>`).join("")}
+    ${isNum(med) ? `<line x1="${L}" x2="${W - R}" y1="${Y(med)}" y2="${Y(med)}" stroke="#76626c" stroke-dasharray="4 4"/>
+      <text x="${W - R}" y="${Y(med) - 4}" text-anchor="end" fill="#76626c" font-size="10.5">5Y median ${med.toFixed(1)}x</text>` : ""}
+    <path d="${d}" fill="none" stroke="#e0197d" stroke-width="1.8"/>
+    ${isNum(last) ? `<circle cx="${X(vals.length - 1)}" cy="${Y(last)}" r="4" fill="#e0197d" stroke="#fff" stroke-width="2"/>` : ""}
+    <text x="${L}" y="${H - 5}" fill="#76626c" font-size="10.5">5 years ago</text>
+    <text x="${W - R}" y="${H - 5}" text-anchor="end" fill="#76626c" font-size="10.5">today</text>`;
+}
+
+function drawPctChart(pts) {
+  const svg = $("pctChart"), W = svg.clientWidth || 400, H = 170, L = 34, R = 10, T = 10, B = 22;
+  svg.setAttribute("viewBox", `0 0 ${W} ${H}`);
+  if (pts.length < 2) { svg.innerHTML = `<text x="50%" y="50%" text-anchor="middle" fill="#76626c" font-size="12">Not enough history (needs 3+ years of earnings)</text>`; return; }
+  const X = (i) => L + i / (pts.length - 1) * (W - L - R), Y = (p) => T + (1 - p / 100) * (H - T - B);
+  const d = pts.map(([, p], i) => `${i ? "L" : "M"}${X(i).toFixed(1)},${Y(p).toFixed(1)}`).join("");
+  const [lastDate, lastP] = pts[pts.length - 1];
+  svg.innerHTML = `
+    <rect x="${L}" y="${Y(100)}" width="${W - L - R}" height="${Y(80) - Y(100)}" fill="#e0197d" fill-opacity="0.08"/>
+    <rect x="${L}" y="${Y(20)}" width="${W - L - R}" height="${Y(0) - Y(20)}" fill="#15803d" fill-opacity="0.08"/>
+    ${[100, 80, 50, 20, 0].map(p => `<text x="${L - 6}" y="${Y(p) + 4}" text-anchor="end" fill="#76626c" font-size="10.5">${p}</text>
+      <line x1="${L}" x2="${W - R}" y1="${Y(p)}" y2="${Y(p)}" stroke="#efdbe5" ${p === 50 ? 'stroke-dasharray="3 4"' : ""}/>`).join("")}
+    <text x="${L + 4}" y="${Y(100) + 12}" fill="#e0197d" font-size="10">expensive</text>
+    <text x="${L + 4}" y="${Y(0) - 4}" fill="#15803d" font-size="10">cheap</text>
+    <path d="${d}" fill="none" stroke="#1d1218" stroke-width="1.8"/>
+    <circle cx="${X(pts.length - 1)}" cy="${Y(lastP)}" r="4" fill="${lastP >= 80 ? "#e0197d" : lastP <= 20 ? "#15803d" : "#1d1218"}" stroke="#fff" stroke-width="2"/>
+    <text x="${L}" y="${H - 5}" fill="#76626c" font-size="10.5">${pts[0][0]}</text>
+    <text x="${W - R}" y="${H - 5}" text-anchor="end" fill="#76626c" font-size="10.5">${lastDate}</text>`;
+}
+
 // Open the stock in the link (e.g. /stock#MSFT); otherwise open today's most-watched stock (from the Market page data)
 const startSymbol = decodeURIComponent(location.hash.slice(1));
 if (startSymbol) {

@@ -159,6 +159,13 @@ def screener_stop():
     return jsonify({"job": screen_job})
 
 
+@app.route("/api/valuation/<symbol>")
+def valuation(symbol):
+    """The screener's view of one stock (percentiles, 5-year series), for the Stock page."""
+    row = db.valuation(symbol.upper())
+    return (jsonify(row), 200) if row else (jsonify({"error": "not in the screener"}), 404)
+
+
 @app.route("/api/search")
 def search():
     query = request.args.get("q", "").strip()[:80]

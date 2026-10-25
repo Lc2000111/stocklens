@@ -131,7 +131,7 @@ RESULT_COLUMNS = {
     "fwdMonths": "fwd_months", "fwdNote": "fwd_note",
     "unreliable": "unreliable", "note": "note", "error": "error",
 }
-SPARK_COLUMNS = {"spark": "spark", "fwdSpark": "fwd_spark", "pegSpark": "peg_spark"}
+SPARK_COLUMNS = {"spark": "spark", "fwdSpark": "fwd_spark", "pegSpark": "peg_spark", "pctHistory": "pct_history"}
 
 
 @contextmanager
@@ -149,6 +149,9 @@ def connect():
 def init():
     with connect() as c:
         c.executescript(SCHEMA)
+        cols = {r[1] for r in c.execute("pragma table_info(screen_results)")}
+        if "pct_history" not in cols:   # added later: weekly percentile over the past year (JSON)
+            c.execute("alter table screen_results add column pct_history text")
 
 
 # ---------- stock list ----------
@@ -232,6 +235,27 @@ def latest_result(symbol):
     with connect() as c:
         row = c.execute("select * from latest_results where symbol = ?", (symbol,)).fetchone()
         return dict(row) if row else None
+
+
+def valuation(symbol):
+    """One stock's full row from the newest snapshot, including its chart series (or None)."""
+    init()
+    with connect() as c:
+        run = c.execute("select run_id, run_at, ibes_as_of from screen_runs order by run_id desc limit 1").fetchone()
+        if not run:
+            return None
+        row = c.execute("""select r.*, s.name, s.sector from screen_results r join stocks s using (symbol)
+                           where r.run_id = ? and r.symbol = ?""", (run["run_id"], symbol)).fetchone()
+    if not row:
+        return None
+    out = {"symbol": symbol, "name": row["name"], "sector": row["sector"], "snapshot": run["run_at"][:16],
+           "ibesAsOf": run["ibes_as_of"]}
+    for key, col in RESULT_COLUMNS.items():
+        if row[col] is not None:
+            out[key] = bool(row[col]) if key == "unreliable" else row[col]
+    for key, col in SPARK_COLUMNS.items():
+        out[key] = json.loads(row[col]) if row[col] else None
+    return out
 
 
 def percentile_history(symbol):

@@ -39,6 +39,19 @@
   .note { color: var(--muted); font-size: 13px; margin-top: 26px; }
   .note code { color: var(--pink-soft); }
   footer { color: #b3a3ab; font-size: 12px; margin-top: 30px; text-align: center; }
+
+  /* ---------- Phones ---------- */
+  @media (max-width: 700px) {
+    .wrap { padding: 16px 14px 40px; }
+    header { flex-wrap: wrap; gap: 10px 16px; margin-bottom: 16px; }
+    header nav, header .nav { order: 3; width: 100%; overflow-x: auto; flex-wrap: nowrap; scrollbar-width: none; -webkit-overflow-scrolling: touch; }
+    header nav::-webkit-scrollbar, header .nav::-webkit-scrollbar { display: none; }
+    header nav a, header .nav a { white-space: nowrap; flex: none; padding: 6px 12px; }
+    h1 { font-size: 24px; }
+    .sub { font-size: 14px; }
+    .askbox { flex-direction: column; }
+    .askbox .ai-btn { width: 100%; padding: 12px; }
+  }
 </style>
 <script src="/static/md.js"></script>
 </head>
@@ -55,7 +68,7 @@
     and answers from the results. You can open "Queries it ran" to check its work.</p>
 
   <div class="askbox">
-    <textarea id="q" rows="2" placeholder="e.g. Which tech stocks are high on all 3 measures but still expect 15%+ growth?"></textarea>
+    <textarea id="q" rows="2" placeholder="e.g. Which tech stocks are cheap on forward P/E but still expect 15%+ growth?"></textarea>
     <button class="ai-btn" id="ask">Ask</button>
   </div>
   <div class="examples" id="examples"></div>
@@ -72,11 +85,11 @@
 <script>
 const $ = (id) => document.getElementById(id);
 const EXAMPLES = [
-  "Which stocks are high on all 3 measures at the 80th percentile?",
-  "Which tech stocks are high on all 3 measures but still expect 15%+ growth?",
+  "Which stocks are cheap on all 3 measures vs. their own history?",
+  "Which stocks are expensive on all 3 measures vs. their own history?",
+  "Which tech stocks are cheap on forward P/E but still expect 15%+ earnings growth?",
   "Which Dow 30 stocks are cheapest versus their own 5-year forward P/E history?",
-  "Average forward P/E percentile by sector, most expensive first",
-  "Which Nasdaq-100 stocks have the highest expected EPS growth, and how are they valued?",
+  "Average forward P/E percentile by sector, cheapest sector first",
   "Show S&P 500 stocks with forward P/E below their 5-year median and PEG under 1",
 ];
 $("examples").innerHTML = EXAMPLES.map(e => `<button>${e}</button>`).join("");

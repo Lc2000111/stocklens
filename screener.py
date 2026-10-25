@@ -128,13 +128,12 @@ def analyze(symbol, ibes_cache, close, splits, earnings_rows):
     start = pd.Timestamp.today().normalize() - pd.DateOffset(years=YEARS)
     if close is None or close.empty:
         raise ValueError("no price history")
-    prices = close[close.index >= start]
-
-    # Attach the latest TTM EPS known as of each trading day
-    ttm.index = ttm.index.as_unit(prices.index.unit)
-    df = pd.merge_asof(prices.rename("close").to_frame(), ttm.rename("ttm_eps").to_frame(),
-                       left_index=True, right_index=True, direction="backward")
-    df["pe"] = df["close"] / df["ttm_eps"]
+    # Attach the latest TTM EPS known as of each trading day (over all ~6 years downloaded)
+    ttm.index = ttm.index.as_unit(close.index.unit)
+    full = pd.merge_asof(close.rename("close").to_frame(), ttm.rename("ttm_eps").to_frame(),
+                         left_index=True, right_index=True, direction="backward")
+    full["pe"] = full["close"] / full["ttm_eps"]
+    df = full[full.index >= start]
     valid = df[df["ttm_eps"] > 0].dropna(subset=["pe"])
 
     latest = df.iloc[-1]
@@ -162,6 +161,7 @@ def analyze(symbol, ibes_cache, close, splits, earnings_rows):
         "vsMedian": clean(pe_now / hist.median() - 1, 4),
         "years": clean((hist.index[-1] - hist.index[0]).days / 365.25, 1),
         "spark": [clean(v) for v in weekly.values],
+        "pctHistory": percentile_history(full),
     })
     result.update(ibes_metrics(splits, symbol, latest["close"], ibes_cache))
     notes = []
@@ -173,6 +173,22 @@ def analyze(symbol, ibes_cache, close, splits, earnings_rows):
     if notes:
         result["note"] = " · ".join(notes)
     return result
+
+
+def percentile_history(full, weeks=52):
+    """Where the trailing P/E ranked each week over the past year, each time against the 5 years before it.
+    Uses the extra year of prices downloaded, so it's real history, not just saved snapshots."""
+    pe = full["pe"].where(full["ttm_eps"] > 0).dropna()
+    if pe.empty:
+        return []
+    out = []
+    for d in pe.resample("W").last().dropna().index[-weeks:]:
+        window = pe[(pe.index > d - pd.DateOffset(years=YEARS)) & (pe.index <= d)]
+        if len(window) < 250 * 3:          # need at least ~3 years of history to rank against
+            continue
+        now = window.iloc[-1]
+        out.append([d.strftime("%Y-%m-%d"), round(float((window <= now).mean() * 100), 1)])
+    return out
 
 
 def ibes_metrics(splits, symbol, price, cache):

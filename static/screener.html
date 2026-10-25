@@ -128,6 +128,31 @@
   select:focus { outline: 2px solid var(--pink-dim); }
   .short { color: var(--muted); font-weight: 500; font-size: 12px; cursor: help; }
   .tile .v span { display: inline; line-height: 1.6; }
+
+  /* ---------- Phones ---------- */
+  @media (max-width: 700px) {
+    .wrap { padding: 16px 14px 40px; }
+    header { flex-wrap: wrap; gap: 10px 16px; margin-bottom: 16px; }
+    header nav, header .nav { order: 3; width: 100%; overflow-x: auto; flex-wrap: nowrap; scrollbar-width: none; -webkit-overflow-scrolling: touch; }
+    header nav::-webkit-scrollbar, header .nav::-webkit-scrollbar { display: none; }
+    header nav a, header .nav a { white-space: nowrap; flex: none; padding: 6px 12px; }
+    h1 { font-size: 24px; }
+    .sub { font-size: 14px; }
+    .controls { gap: 12px; }
+    input[type=range] { width: 130px; }
+    .tiles { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .tile .v { font-size: 20px; }
+    .tile .v span { font-size: 12px !important; }
+    .method { font-size: 13px; }
+    /* Table: keep ticker, badge, Now and the three percentiles; drop #, name, median, range bar, growth, history */
+    #head th:nth-child(1), #head th:nth-child(4), #head th:nth-child(5), #head th:nth-child(10), #head th:nth-child(11),
+    #rows tr[data-s] > td:nth-child(1), #rows tr[data-s] > td:nth-child(4), #rows tr[data-s] > td:nth-child(5),
+    #rows tr[data-s] > td:nth-child(10), #rows tr[data-s] > td:nth-child(11) { display: none; }
+    #rows .nm { display: none; }
+    .pbar .track { display: none; }
+    th, td { padding: 9px 5px; }
+    tr.ai-detail td { padding-left: 6px; }
+  }
 </style>
 <script src="/static/md.js"></script>
 </head>
@@ -316,7 +341,10 @@ function sparkSvg(vals, now) {
     ${isNum(last) ? `<circle cx="${X(vals.length - 1)}" cy="${Y(last)}" r="2.8" fill="#e0197d"/>` : ""}</svg>`;
 }
 
-const pctText = (v) => isNum(v) ? v.toFixed(0) + "th" : NA;
+// 1 → 1st, 2 → 2nd, 3 → 3rd, 11 → 11th, 22 → 22nd
+const ordinal = (n) => { const v = Math.round(n), t = v % 100;
+  return v + (t >= 11 && t <= 13 ? "th" : ({ 1: "st", 2: "nd", 3: "rd" })[v % 10] || "th"); };
+const pctText = (v) => isNum(v) ? ordinal(v) : NA;
 
 function render() {
   renderHead();
@@ -361,7 +389,7 @@ function render() {
     <div class="tile cheap" title="${B().label} at or below the ${loTh}th percentile of its own 5-year history"><div class="k">Cheap · ${B().label} ≤ ${loTh}th</div><div class="v">${loNow.length} <span style="font-size:15px;color:var(--muted)">of ${reliable.length}</span></div></div>
     <div class="tile accent" title="Expensive on trailing P/E, forward P/E and PEG"><div class="k">Expensive on all 3</div><div class="v">${hi3.length} <span style="font-size:14px;color:var(--muted);font-weight:600">${tickerList(hi3)}</span></div></div>
     <div class="tile cheap" title="Cheap on trailing P/E, forward P/E and PEG"><div class="k">Cheap on all 3</div><div class="v">${lo3.length} <span style="font-size:14px;color:var(--muted);font-weight:600">${tickerList(lo3)}</span></div></div>
-    <div class="tile" title="${notScored} stock(s) not scored on ${B().label}: ${all.filter(r => !isNum(r[pk])).map(r => r.symbol).join(", ")}"><div class="k">Median ${B().label} percentile</div><div class="v">${reliable.length ? median(reliable.map(r => r[pk])).toFixed(0) + "th" : "—"}</div></div>`;
+    <div class="tile" title="${notScored} stock(s) not scored on ${B().label}: ${all.filter(r => !isNum(r[pk])).map(r => r.symbol).join(", ")}"><div class="k">Median ${B().label} percentile</div><div class="v">${reliable.length ? ordinal(median(reliable.map(r => r[pk]))) : "—"}</div></div>`;
 
   // Which rows to show: the expensive zone, the cheap zone, or everything
   const minHits = +$("hitFilter").value;
@@ -402,7 +430,7 @@ function render() {
       <td><b>${isNum(now) ? B().fmt(now) : (r.error ? NA : NM)}</b></td>
       <td>${isNum(r[B().med]) ? B().fmt(r[B().med]) : NA}</td>
       <td>${scoredRow && isNum(now) && isNum(r[B().min]) ? rangeSvg(r) : NA}</td>
-      <td>${scoredRow ? `<span class="pbar"><span class="track"><span class="fill ${isHigh(pct) ? "" : isLow(pct) ? "low" : "mid"}" style="width:${Math.max(pct, 2)}%;display:block"></span></span><span class="num ${zone(pct)}">${pct.toFixed(0)}th</span></span>` : NA}</td>
+      <td>${scoredRow ? `<span class="pbar"><span class="track"><span class="fill ${isHigh(pct) ? "" : isLow(pct) ? "low" : "mid"}" style="width:${Math.max(pct, 2)}%;display:block"></span></span><span class="num ${zone(pct)}">${ordinal(pct)}</span></span>` : NA}</td>
       ${trio("percentile", "trailing")}${trio("fwdPctile", "forward")}${trio("pegPctile", "peg")}
       <td title="${growthTip}">${isNum(r.growth) ? `<span class="${r.growth >= 0 ? "up" : "down"}">${r.growth >= 0 ? "+" : ""}${(r.growth * 100).toFixed(0)}%</span>` : NA}</td>
       <td>${sparkSvg(r[B().spark], basis === "trailing" ? null : now)}</td>

@@ -108,6 +108,22 @@
   .err { color: var(--down); text-align: center; padding: 14px; }
   footer { color: #b3a3ab; font-size: 12px; margin-top: 30px; text-align: center; }
   #result { display: none; }
+
+  /* ---------- Phones ---------- */
+  @media (max-width: 700px) {
+    .wrap { padding: 16px 14px 40px; }
+    header { flex-wrap: wrap; gap: 10px 16px; margin-bottom: 16px; }
+    header nav, header .nav { order: 3; width: 100%; overflow-x: auto; flex-wrap: nowrap; scrollbar-width: none; -webkit-overflow-scrolling: touch; }
+    header nav::-webkit-scrollbar, header .nav::-webkit-scrollbar { display: none; }
+    header nav a, header .nav a { white-space: nowrap; flex: none; padding: 6px 12px; }
+    h1 { font-size: 24px; }
+    .sub { font-size: 14px; }
+    .drop { padding: 20px 14px; }
+    .tiles { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .tile .v { font-size: 19px; }
+    .plan-row input[type=range] { width: 100%; }
+    .file b { min-width: 0; }
+  }
 </style>
 <script src="/static/md.js"></script>
 </head>
