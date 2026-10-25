@@ -13,6 +13,7 @@ import yfinance as yf
 from flask import Flask, jsonify, request, send_from_directory
 
 import agents
+import db
 import guard
 import market
 import screener
@@ -110,18 +111,26 @@ def screener_refresh():
 
 @app.route("/api/search")
 def search():
-    query = request.args.get("q", "").strip()
+    query = request.args.get("q", "").strip()[:80]
     if not query:
         return jsonify([])
+    # 1) our own 516 stocks: instant and works even when Yahoo search is slow or blocked
+    try:
+        results = db.search_stocks(query)
+    except Exception:
+        results = []
+    # 2) Yahoo search, for everything else (other tickers, ETFs, foreign listings)
     try:
         quotes = yf.Search(query, max_results=8).quotes
     except Exception:
-        return jsonify([])
-    return jsonify([
-        {"symbol": q.get("symbol"), "name": q.get("shortname") or q.get("longname"), "type": q.get("quoteType"), "exchange": q.get("exchDisp")}
-        for q in quotes
-        if q.get("quoteType") in ("EQUITY", "ETF")
-    ])
+        quotes = []
+    seen = {r["symbol"] for r in results}
+    for q in quotes:
+        if q.get("quoteType") in ("EQUITY", "ETF") and q.get("symbol") not in seen:
+            seen.add(q.get("symbol"))
+            results.append({"symbol": q.get("symbol"), "name": q.get("shortname") or q.get("longname"),
+                            "type": q.get("quoteType"), "exchange": q.get("exchDisp")})
+    return jsonify(results[:8])
 
 
 @app.route("/api/market/today")

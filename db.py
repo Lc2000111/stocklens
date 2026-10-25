@@ -322,6 +322,50 @@ def ai_usage_summary(visitor):
     return {"visitor_last_hour": mine, "calls_today": calls, "tokens_today": tokens}
 
 
+# ---------- stock search (our own 516 stocks) ----------
+
+_SUFFIXES = {"inc", "incorporated", "corp", "corporation", "co", "company", "ltd", "limited", "plc", "the",
+             "holdings", "holding", "group", "sa", "nv", "ag", "class", "a", "b", "c"}
+
+
+def _norm(text):
+    """'Apple Inc.' -> 'apple' ; 'Johnson & Johnson' -> 'johnson johnson'."""
+    words = "".join(ch.lower() if ch.isalnum() else " " for ch in (text or "")).split()
+    kept = [w for w in words if w not in _SUFFIXES]
+    return " ".join(kept or words)
+
+
+def search_stocks(query, limit=6):
+    """Match by ticker or company name (our short name or Yahoo's full name from the snapshot)."""
+    init()
+    q = _norm(query)
+    if not q:
+        return []
+    up = query.strip().upper()
+    with connect() as c:
+        rows = c.execute("""select s.symbol, s.name, s.sector, p.info from stocks s
+                            left join company_profiles p using (symbol)""").fetchall()
+    scored = []
+    for r in rows:
+        full = (json.loads(r["info"]).get("longName") if r["info"] else None) or ""
+        names = [_norm(r["name"]), _norm(full)]
+        sym = r["symbol"]
+        if sym == up:
+            rank = 0                                   # exact ticker
+        elif any(n == q for n in names):
+            rank = 1                                   # exact company name
+        elif any(n.startswith(q) for n in names) or sym.startswith(up):
+            rank = 2                                   # starts with what was typed
+        elif any(f" {q}" in f" {n}" for n in names):
+            rank = 3                                   # a later word starts with it
+        else:
+            continue
+        scored.append((rank, len(r["name"] or ""), {"symbol": sym, "name": full or r["name"], "type": "EQUITY",
+                                                     "exchange": r["sector"] or ""}))
+    scored.sort(key=lambda x: (x[0], x[1]))
+    return [x[2] for x in scored[:limit]]
+
+
 # ---------- company profiles (snapshot of Yahoo company details) ----------
 
 def save_profile(symbol, info):

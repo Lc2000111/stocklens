@@ -285,7 +285,8 @@ const searchCache = {};   // query -> results, so Enter and the dropdown share o
 function searchFor(q) {
   const key = q.toLowerCase();
   if (!searchCache[key]) {
-    searchCache[key] = fetch(`/api/search?q=${encodeURIComponent(q)}`).then(r => r.json()).catch(() => []);
+    searchCache[key] = fetch(`/api/search?q=${encodeURIComponent(q)}`).then(r => r.json()).catch(() => [])
+      .then(res => { if (!Array.isArray(res) || !res.length) delete searchCache[key]; return Array.isArray(res) ? res : []; });
   }
   return searchCache[key];
 }
@@ -329,7 +330,10 @@ input.addEventListener("keydown", async (e) => {
     showNote("Searching…");
     const match = bestMatch(q, await searchFor(q));
     if (input.value.trim() !== q) return;
-    load(match ? match.symbol : q);
+    if (match) return load(match.symbol);
+    // No search match: only try it as a ticker if it looks like one (e.g. "BRK-B"), never a company name
+    if (/^[A-Za-z]{1,5}([.-][A-Za-z]{1,2})?$/.test(q)) return load(q);
+    showNote(`No matches for “${q.replace(/</g, "&lt;")}”. Try a ticker or a company name.`);
   } else if (e.key === "Escape") closeSug();
 });
 sug.addEventListener("mousedown", (e) => {
