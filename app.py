@@ -17,8 +17,10 @@ import db
 import guard
 import market
 import screener
+import statements
 
 app = Flask(__name__, static_folder="static")
+app.config["MAX_CONTENT_LENGTH"] = 60 * 1024 * 1024   # whole upload; each file is also capped at 5 MB
 
 # Background state for the P/E screener (it takes ~15 seconds to scan every stock)
 screen_job = {"running": False, "done": 0, "total": 0, "error": None}
@@ -37,6 +39,39 @@ def screener_page():
 @app.route("/ask")
 def ask_page():
     return send_from_directory("static", "ask.html")
+
+
+@app.route("/statement")
+def statement_page():
+    return send_from_directory("static", "statement.html")
+
+
+# ---------- Personal income statement (statements.py). Files are processed in memory and never saved. ----------
+
+SAMPLE_DIR = os.path.join(os.path.dirname(__file__), "sample_statements")
+
+
+@app.route("/api/statement/parse", methods=["POST"])
+def statement_parse():
+    files = [(f.filename or "statement", f.read()) for f in request.files.getlist("files") if f and f.filename]
+    if not files:
+        return jsonify({"error": "Choose at least one CSV or PDF statement."}), 400
+    return _agent("statement", statements.process, files)
+
+
+@app.route("/api/statement/sample", methods=["POST"])
+def statement_sample():
+    names = sorted(n for n in os.listdir(SAMPLE_DIR) if n.lower().endswith((".csv", ".pdf")))
+    files = [(n, open(os.path.join(SAMPLE_DIR, n), "rb").read()) for n in names]
+    return _agent("statement", statements.process, files)
+
+
+@app.route("/api/statement/insights", methods=["POST"])
+def statement_insights():
+    summary = request.get_json(silent=True) or {}
+    if not summary.get("totals"):
+        return jsonify({"error": "Build an income statement first."}), 400
+    return _agent("insights", statements.insights, summary)
 
 
 # ---------- AI agents (gpt-6-luna via Portkey; see agents.py) ----------

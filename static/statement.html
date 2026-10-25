@@ -1,0 +1,369 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Income Statement · StockLens</title>
+<style>
+  :root {
+    --bg: #ffffff; --panel: #ffffff; --panel-2: #fdf3f8; --border: #efdbe5;
+    --pink: #e0197d; --pink-soft: #ec5a9e; --pink-dim: #f2a3c7;
+    --text: #1d1218; --muted: #76626c; --up: #15803d; --down: #dc2626;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--text); font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, Roboto, sans-serif; font-size: 15px; line-height: 1.45; }
+  .wrap { max-width: 1200px; margin: 0 auto; padding: 28px 24px 60px; }
+  header { display: flex; align-items: center; gap: 28px; margin-bottom: 26px; flex-wrap: wrap; }
+  .logo { font-size: 22px; font-weight: 800; letter-spacing: -0.5px; color: var(--text); text-decoration: none; }
+  .logo span { color: var(--pink); }
+  nav { display: flex; gap: 6px; flex-wrap: wrap; }
+  nav a { color: var(--muted); text-decoration: none; font-weight: 700; font-size: 14px; padding: 7px 14px; border-radius: 999px; }
+  nav a:hover { color: var(--pink); }
+  nav a.on { color: #ffffff; background: var(--pink); }
+  h1 { margin: 0; font-size: 30px; letter-spacing: -0.5px; }
+  h1 em { color: var(--pink); font-style: normal; }
+  h3 { font-size: 13px; text-transform: uppercase; letter-spacing: 1.2px; color: var(--pink); margin: 0 0 12px; }
+  .sub { color: var(--muted); margin: 6px 0 20px; max-width: 820px; }
+  .panel { background: var(--panel); border: 1px solid var(--border); border-radius: 16px; padding: 20px; margin-bottom: 16px; box-shadow: 0 1px 3px rgba(29,18,24,0.06); }
+
+  .drop { border: 2px dashed var(--pink-dim); border-radius: 16px; padding: 30px; text-align: center; background: var(--panel-2); cursor: pointer; transition: border-color .15s, background .15s; }
+  .drop.over { border-color: var(--pink); background: #fde7f1; }
+  .drop b { color: var(--pink); }
+  .drop .hint { color: var(--muted); font-size: 13px; margin-top: 6px; }
+  .filelist { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 12px; justify-content: center; }
+  .filelist span { background: #fff; border: 1px solid var(--border); border-radius: 999px; padding: 4px 12px; font-size: 13px; }
+  .actions { display: flex; gap: 10px; justify-content: center; margin-top: 16px; flex-wrap: wrap; }
+  .btn { background: var(--pink); color: #fff; border: none; font-weight: 800; padding: 10px 18px; border-radius: 10px; cursor: pointer; font-size: 14px; }
+  .btn.ghost { background: #fff; color: var(--pink); border: 1.5px solid var(--pink-dim); }
+  .btn:disabled { opacity: 0.5; cursor: wait; }
+  .privacy { color: var(--muted); font-size: 12.5px; margin-top: 14px; text-align: center; }
+
+  .tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px; margin-bottom: 16px; }
+  .tile { background: var(--panel); border: 1px solid var(--border); border-radius: 14px; padding: 14px 16px; box-shadow: 0 1px 3px rgba(29,18,24,0.06); }
+  .tile .k { color: var(--muted); font-size: 12px; text-transform: uppercase; letter-spacing: 0.8px; }
+  .tile .v { font-size: 24px; font-weight: 800; margin-top: 4px; font-variant-numeric: tabular-nums; }
+  .tile.accent { border-color: var(--pink-dim); background: linear-gradient(160deg, #fde7f1, #fff); }
+  .tile.accent .v { color: var(--pink); }
+  .up { color: var(--up); } .down { color: var(--down); }
+
+  .files { display: flex; flex-direction: column; gap: 6px; }
+  .file { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; font-size: 13.5px; padding: 8px 0; border-bottom: 1px solid var(--border); }
+  .file:last-child { border-bottom: none; }
+  .file b { min-width: 240px; }
+  .file .meta { color: var(--muted); }
+  .file button { margin-left: auto; background: none; border: 1px solid var(--border); border-radius: 8px; padding: 3px 10px; font-size: 12px; cursor: pointer; color: var(--muted); }
+  .file button:hover { border-color: var(--pink); color: var(--pink); }
+  .warn { color: #b45309; font-size: 13px; margin-top: 8px; }
+
+  table { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; }
+  th, td { padding: 8px 10px; border-bottom: 1px solid var(--border); text-align: right; white-space: nowrap; }
+  th:first-child, td:first-child { text-align: left; }
+  th { color: var(--muted); font-weight: 600; font-size: 12.5px; }
+  tr.section td { color: var(--pink); font-weight: 800; text-transform: uppercase; letter-spacing: 1px; font-size: 12px; padding-top: 16px; border-bottom: 1px solid var(--pink-dim); }
+  tr.total td { font-weight: 800; border-top: 1.5px solid var(--text); }
+  tr.net td { font-weight: 800; font-size: 16px; background: var(--panel-2); }
+  tr.muted td { color: var(--muted); font-size: 13px; white-space: normal; }
+  td.cat { padding-left: 22px; }
+  .bar { display: inline-block; height: 8px; border-radius: 4px; background: linear-gradient(90deg, var(--pink-dim), var(--pink)); vertical-align: middle; }
+
+  .grid2 { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 16px; }
+  @media (max-width: 960px) { .grid2 { grid-template-columns: 1fr; } }
+  .brk { display: flex; flex-direction: column; gap: 8px; }
+  .brk div { display: grid; grid-template-columns: 130px 1fr 70px; gap: 10px; align-items: center; font-size: 13px; }
+  .brk .track { display: block; background: var(--panel-2); border-radius: 4px; height: 8px; }
+  .brk .track .bar { display: block; height: 8px; }
+  .brk .amt { text-align: right; font-weight: 700; font-variant-numeric: tabular-nums; }
+
+  .txbar { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 10px; align-items: center; }
+  .txbar input, .txbar select, td select { font: inherit; font-size: 13.5px; border: 1px solid var(--border); border-radius: 8px; padding: 6px 10px; background: #fff; color: var(--text); }
+  .txbar input { flex: 1; min-width: 200px; }
+  .txwrap { max-height: 520px; overflow: auto; border: 1px solid var(--border); border-radius: 12px; }
+  .txwrap th { position: sticky; top: 0; background: #fff; z-index: 1; }
+  .txwrap td { font-size: 13.5px; }
+  td.desc { text-align: left; white-space: normal; max-width: 360px; }
+  .how { font-size: 11px; font-weight: 800; border-radius: 999px; padding: 1px 7px; }
+  .how.rule { background: #f1f5f9; color: #475569; } .how.ai { background: #fde7f1; color: var(--pink); }
+  .how.you { background: #dcfce7; color: var(--up); } .how.default { background: #fef3c7; color: #92400e; }
+  .status { text-align: center; color: var(--muted); padding: 30px 0; }
+  .spinner { width: 30px; height: 30px; border: 3px solid var(--border); border-top-color: var(--pink); border-radius: 50%; animation: spin 0.8s linear infinite; margin: 0 auto 12px; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .err { color: var(--down); text-align: center; padding: 14px; }
+  footer { color: #b3a3ab; font-size: 12px; margin-top: 30px; text-align: center; }
+  #result { display: none; }
+</style>
+<script src="/static/md.js"></script>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <a class="logo" href="/">Stock<span>Lens</span></a>
+    <nav><a href="/">Lookup</a><a href="/screener">P/E Screener</a><a href="/ask">Ask AI</a><a href="/statement" class="on">Income Statement</a></nav>
+  </header>
+
+  <h1>Your personal <em>income statement</em></h1>
+  <p class="sub">Upload your bank and credit-card statements (CSV or PDF) and get an income statement like a company's:
+    income, expenses by category, and net income (what you saved), month by month. Payments from your bank to your
+    cards and transfers between your own accounts are left out, so nothing is counted twice.</p>
+
+  <div class="panel" id="uploader">
+    <div class="drop" id="drop">
+      <div><b>Drop statements here</b> or click to choose files</div>
+      <div class="hint">CSV exports or PDF statements · several files at once (checking + cards) · up to 10 files, 5 MB each</div>
+      <input type="file" id="files" accept=".csv,.pdf,.txt" multiple hidden />
+      <div class="filelist" id="filelist"></div>
+    </div>
+    <div class="actions">
+      <button class="btn" id="build" disabled>Build my income statement</button>
+      <button class="btn ghost" id="sample">Try the sample statements</button>
+    </div>
+    <div class="privacy">🔒 Files are read in memory and <b>never saved</b>. Card and account numbers are masked before anything is
+      sent to the AI (gpt-6-luna via Portkey), which only sees merchant names to sort them into categories. Amounts are read by
+      code, not the AI. For PDFs, every amount the AI finds is checked against the PDF text.</div>
+    <div id="status"></div>
+  </div>
+
+  <div id="result">
+    <div class="tiles" id="tiles"></div>
+
+    <div class="panel">
+      <h3>Statements read</h3>
+      <div class="files" id="fileinfo"></div>
+      <div id="warnings"></div>
+    </div>
+
+    <div class="panel">
+      <h3>Income statement</h3>
+      <div style="overflow-x:auto"><table id="is"></table></div>
+      <div class="actions" style="justify-content:flex-start">
+        <button class="btn ghost" id="dlIS">Download statement (CSV)</button>
+        <button class="btn ghost" id="dlTx">Download transactions (CSV)</button>
+      </div>
+    </div>
+
+    <div class="grid2">
+      <div class="panel">
+        <h3>Where the money went</h3>
+        <div class="brk" id="breakdown"></div>
+      </div>
+      <div class="panel ai-panel" style="margin-top:0">
+        <div class="ai-head"><h3>AI insights</h3><button class="ai-btn" id="insights">Explain my spending</button></div>
+        <div class="ai-head" style="margin-top:6px"><span class="hint">Uses only the category totals, never your individual transactions.</span></div>
+        <div id="insightOut"></div>
+      </div>
+    </div>
+
+    <div class="panel">
+      <h3>Transactions</h3>
+      <div class="txbar">
+        <input id="txSearch" placeholder="Search descriptions…" />
+        <select id="txCat"><option value="">All categories</option></select>
+        <span id="txCount" style="color:var(--muted);font-size:13px"></span>
+      </div>
+      <div class="txwrap"><table id="tx"></table></div>
+      <div style="color:var(--muted);font-size:12.5px;margin-top:8px">Change any category and the statement updates instantly.
+        <span class="how rule">RULE</span> keyword rule · <span class="how ai">AI</span> sorted by the AI ·
+        <span class="how you">YOU</span> changed by you</div>
+    </div>
+  </div>
+
+  <footer>Educational tool, not financial advice · statements are processed in memory and not stored</footer>
+</div>
+
+<script>
+const $ = (id) => document.getElementById(id);
+const esc = (s) => String(s ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+const money = (v, sign = false) => (v < 0 ? "−" : sign && v > 0 ? "+" : "") + "$" + Math.abs(v).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+const money0 = (v) => (v < 0 ? "−" : "") + "$" + Math.abs(v).toLocaleString(undefined, { maximumFractionDigits: 0 });
+const monthLabel = (m) => new Date(m + "-15").toLocaleDateString(undefined, { month: "short", year: "numeric" });
+
+let chosen = [];       // File objects picked by the user
+let S = null;          // server result: {transactions, files, categories, warnings, stats}
+
+// ---------- Upload ----------
+const drop = $("drop"), picker = $("files");
+drop.addEventListener("click", () => picker.click());
+picker.addEventListener("change", () => setFiles([...picker.files]));
+["dragenter", "dragover"].forEach(ev => drop.addEventListener(ev, (e) => { e.preventDefault(); drop.classList.add("over"); }));
+["dragleave", "drop"].forEach(ev => drop.addEventListener(ev, (e) => { e.preventDefault(); drop.classList.remove("over"); }));
+drop.addEventListener("drop", (e) => setFiles([...e.dataTransfer.files]));
+function setFiles(list) {
+  chosen = list.filter(f => /\.(csv|pdf|txt)$/i.test(f.name)).slice(0, 10);
+  $("filelist").innerHTML = chosen.map(f => `<span>${esc(f.name)} · ${(f.size / 1024).toFixed(0)} KB</span>`).join("");
+  $("build").disabled = !chosen.length;
+}
+
+async function run(url, body) {
+  $("build").disabled = $("sample").disabled = true;
+  const hasPdf = body instanceof FormData ? chosen.some(f => /\.pdf$/i.test(f.name)) : true;
+  $("status").innerHTML = `<div class="status"><div class="spinner"></div>Reading statements and sorting merchants…${hasPdf ? " PDFs take 10–30 seconds." : ""}</div>`;
+  try {
+    const res = await fetch(url, { method: "POST", body });
+    const d = await res.json();
+    if (!res.ok || d.error) throw new Error(d.error || "Request failed");
+    S = d;
+    $("status").innerHTML = "";
+    if (!S.transactions.length) {
+      $("status").innerHTML = `<div class="err">No transactions found. ${S.warnings.map(esc).join(" ")}</div>`;
+      return;
+    }
+    setupCategorySelect();
+    $("insightOut").innerHTML = "";
+    $("result").style.display = "block";
+    renderAll();
+    $("result").scrollIntoView({ behavior: "smooth", block: "start" });
+  } catch (e) {
+    $("status").innerHTML = `<div class="err">${esc(e.message)}</div>`;
+  } finally {
+    $("build").disabled = !chosen.length;
+    $("sample").disabled = false;
+  }
+}
+$("build").addEventListener("click", () => {
+  const fd = new FormData();
+  chosen.forEach(f => fd.append("files", f));
+  run("/api/statement/parse", fd);
+});
+$("sample").addEventListener("click", () => run("/api/statement/sample", null));
+
+// ---------- Income statement math ----------
+function compute() {
+  const { income, expense, transfer } = S.categories;
+  const months = [...new Set(S.transactions.map(t => t.date.slice(0, 7)))].sort();
+  const blank = () => Object.fromEntries(months.map(m => [m, 0]));
+  const inc = {}, exp = {};
+  income.forEach(c => inc[c] = blank());
+  expense.forEach(c => exp[c] = blank());
+  let transfers = 0, transferCount = 0;
+  for (const t of S.transactions) {
+    const m = t.date.slice(0, 7);
+    if (t.category === transfer) { transfers += Math.abs(t.amount); transferCount++; }
+    else if (inc[t.category]) inc[t.category][m] += t.amount;          // money in
+    else if (exp[t.category]) exp[t.category][m] += -t.amount;         // money out (refunds reduce it)
+  }
+  const sum = (o) => Object.values(o).reduce((a, b) => a + b, 0);
+  const colTotal = (rows) => Object.fromEntries(months.map(m => [m, Object.values(rows).reduce((a, r) => a + r[m], 0)]));
+  const incT = colTotal(inc), expT = colTotal(exp);
+  const net = Object.fromEntries(months.map(m => [m, incT[m] - expT[m]]));
+  const totalIncome = sum(incT), totalExpenses = sum(expT);
+  return { months, inc, exp, incT, expT, net, totalIncome, totalExpenses, netIncome: totalIncome - totalExpenses,
+           savingsRate: totalIncome > 0 ? (totalIncome - totalExpenses) / totalIncome : null, transfers, transferCount, sum };
+}
+
+function renderAll() { const C = compute(); renderTiles(C); renderFiles(); renderIS(C); renderBreakdown(C); renderTx(); }
+
+function renderTiles(C) {
+  const first = S.transactions[0].date, last = S.transactions[S.transactions.length - 1].date;
+  $("tiles").innerHTML = `
+    <div class="tile"><div class="k">Income</div><div class="v up">${money0(C.totalIncome)}</div></div>
+    <div class="tile"><div class="k">Expenses</div><div class="v">${money0(C.totalExpenses)}</div></div>
+    <div class="tile accent"><div class="k">Net income (saved)</div><div class="v ${C.netIncome >= 0 ? "" : "down"}">${money0(C.netIncome)}</div></div>
+    <div class="tile accent"><div class="k">Savings rate</div><div class="v">${C.savingsRate === null ? "—" : (C.savingsRate * 100).toFixed(0) + "%"}</div></div>
+    <div class="tile"><div class="k">Period</div><div class="v" style="font-size:17px">${first} → ${last}</div></div>`;
+}
+
+function renderFiles() {
+  $("fileinfo").innerHTML = S.files.map(f => `<div class="file"><b>${esc(f.name)}</b>
+      <span class="meta">${f.transactions} transactions · ${f.from} → ${f.to} · read by ${esc(f.columns)}${f.signFlipped ? " · charges were positive in this file (handled)" : ""}</span>
+      <button data-flip="${f.index}" title="If money in and money out look swapped for this file, flip them">Flip signs</button></div>`).join("");
+  $("warnings").innerHTML = (S.warnings || []).map(w => `<div class="warn">⚠ ${esc(w)}</div>`).join("");
+  const st = S.stats || {};
+  $("fileinfo").insertAdjacentHTML("beforeend", `<div class="meta" style="font-size:12.5px;color:var(--muted);margin-top:6px">
+    ${st.ruleCategorized ?? 0} transactions categorized by keyword rules · ${st.aiMerchants ?? 0} unfamiliar merchants sorted by the AI</div>`);
+}
+$("fileinfo").addEventListener("click", (e) => {
+  const b = e.target.closest("[data-flip]");
+  if (!b) return;
+  const fi = +b.dataset.flip;
+  S.transactions.forEach(t => { if (t.file === fi) t.amount = -t.amount; });
+  renderAll();
+});
+
+function renderIS(C) {
+  const head = `<tr><th></th>${C.months.map(m => `<th>${monthLabel(m)}</th>`).join("")}<th>Total</th><th>% of income</th></tr>`;
+  const pct = (v) => C.totalIncome > 0 ? (v / C.totalIncome * 100).toFixed(1) + "%" : "—";
+  const row = (label, vals, cls = "", total = C.sum(vals)) =>
+    `<tr class="${cls}"><td class="${cls ? "" : "cat"}">${label}</td>${C.months.map(m => `<td>${money(vals[m])}</td>`).join("")}<td><b>${money(total)}</b></td><td>${pct(total)}</td></tr>`;
+  const nonzero = (rows) => Object.entries(rows).filter(([, v]) => Math.abs(C.sum(v)) >= 0.005).sort((a, b) => C.sum(b[1]) - C.sum(a[1]));
+  let h = head + `<tr class="section"><td colspan="${C.months.length + 3}">Income</td></tr>`;
+  nonzero(C.inc).forEach(([c, v]) => h += row(esc(c), v));
+  h += row("Total income", C.incT, "total");
+  h += `<tr class="section"><td colspan="${C.months.length + 3}">Expenses</td></tr>`;
+  nonzero(C.exp).forEach(([c, v]) => h += row(esc(c), v));
+  h += row("Total expenses", C.expT, "total");
+  h += row("Net income (saved)", C.net, "net");
+  h += `<tr class="muted"><td>Savings rate</td>${C.months.map(m => `<td>${C.incT[m] > 0 ? (C.net[m] / C.incT[m] * 100).toFixed(0) + "%" : "—"}</td>`).join("")}<td>${C.savingsRate === null ? "—" : (C.savingsRate * 100).toFixed(0) + "%"}</td><td></td></tr>`;
+  h += `<tr class="muted"><td colspan="${C.months.length + 3}">Not counted: ${C.transferCount} transfers &amp; card payments (${money(C.transfers)} moved between your own accounts). Months include only the days your statements cover.</td></tr>`;
+  $("is").innerHTML = h;
+}
+
+function renderBreakdown(C) {
+  const rows = Object.entries(C.exp).map(([c, v]) => [c, C.sum(v)]).filter(([, v]) => v > 0.005).sort((a, b) => b[1] - a[1]);
+  const max = rows.length ? rows[0][1] : 1;
+  $("breakdown").innerHTML = rows.map(([c, v]) => `<div><span>${esc(c)}</span><span class="track"><span class="bar" style="width:${Math.max(2, v / max * 100)}%"></span></span>
+      <span class="amt">${money0(v)}</span></div>`).join("") || `<div class="status">No expenses found.</div>`;
+}
+
+// ---------- Transactions ----------
+function setupCategorySelect() {
+  const all = [...S.categories.income, ...S.categories.expense, S.categories.transfer];
+  $("txCat").innerHTML = `<option value="">All categories</option>` + all.map(c => `<option>${esc(c)}</option>`).join("");
+}
+function catSelect(t) {
+  const { income, expense, transfer } = S.categories;
+  const opt = (c) => `<option ${c === t.category ? "selected" : ""}>${esc(c)}</option>`;
+  return `<select data-id="${t.id}"><optgroup label="Income">${income.map(opt).join("")}</optgroup>
+    <optgroup label="Expenses">${expense.map(opt).join("")}</optgroup><optgroup label="Excluded">${opt(transfer)}</optgroup></select>`;
+}
+function renderTx() {
+  const q = $("txSearch").value.trim().toLowerCase(), cat = $("txCat").value;
+  const names = Object.fromEntries(S.files.map(f => [f.index, f.name.replace(/\.(csv|pdf|txt)$/i, "")]));
+  const list = S.transactions.filter(t => (!q || t.description.toLowerCase().includes(q)) && (!cat || t.category === cat));
+  $("txCount").textContent = `${list.length} of ${S.transactions.length}`;
+  $("tx").innerHTML = `<tr><th>Date</th><th style="text-align:left">Description</th><th style="text-align:left">Statement</th><th>Amount</th><th style="text-align:left">Category</th><th>How</th></tr>` +
+    list.map(t => `<tr><td>${t.date}</td><td class="desc">${esc(t.description)}</td><td style="text-align:left;color:var(--muted);font-size:12px">${esc(names[t.file] || "")}</td>
+      <td class="${t.amount > 0 ? "up" : ""}">${money(t.amount, true)}</td><td style="text-align:left">${catSelect(t)}</td>
+      <td><span class="how ${t.method}">${t.method === "default" ? "?" : t.method.toUpperCase()}</span></td></tr>`).join("");
+}
+$("tx").addEventListener("change", (e) => {
+  const sel = e.target.closest("select[data-id]");
+  if (!sel) return;
+  const t = S.transactions[+sel.dataset.id];
+  t.category = sel.value; t.method = "you";
+  const C = compute(); renderTiles(C); renderIS(C); renderBreakdown(C);
+  sel.closest("tr").querySelector(".how").outerHTML = `<span class="how you">YOU</span>`;
+});
+$("txSearch").addEventListener("input", renderTx);
+$("txCat").addEventListener("change", renderTx);
+
+// ---------- Downloads ----------
+function download(name, rows) {
+  const csv = rows.map(r => r.map(v => `"${String(v ?? "").replace(/"/g, '""')}"`).join(",")).join("\n");
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(new Blob([csv], { type: "text/csv" }));
+  a.download = name; a.click(); URL.revokeObjectURL(a.href);
+}
+$("dlTx").addEventListener("click", () => download("transactions.csv",
+  [["date", "description", "amount", "category", "how", "statement"], ...S.transactions.map(t => [t.date, t.description, t.amount, t.category, t.method, (S.files.find(f => f.index === t.file) || {}).name])]));
+$("dlIS").addEventListener("click", () => {
+  const C = compute(), r2 = (v) => v.toFixed(2);
+  const rows = [["", ...C.months, "Total"], ["INCOME"]];
+  Object.entries(C.inc).forEach(([c, v]) => { if (Math.abs(C.sum(v)) >= 0.005) rows.push([c, ...C.months.map(m => r2(v[m])), r2(C.sum(v))]); });
+  rows.push(["Total income", ...C.months.map(m => r2(C.incT[m])), r2(C.totalIncome)], ["EXPENSES"]);
+  Object.entries(C.exp).forEach(([c, v]) => { if (Math.abs(C.sum(v)) >= 0.005) rows.push([c, ...C.months.map(m => r2(v[m])), r2(C.sum(v))]); });
+  rows.push(["Total expenses", ...C.months.map(m => r2(C.expT[m])), r2(C.totalExpenses)]);
+  rows.push(["Net income", ...C.months.map(m => r2(C.net[m])), r2(C.netIncome)]);
+  download("income_statement.csv", rows);
+});
+
+// ---------- AI insights (aggregates only) ----------
+$("insights").addEventListener("click", () => {
+  const C = compute(), r2 = (o) => Object.fromEntries(Object.entries(o).map(([k, v]) => [k, Math.round(v * 100) / 100]));
+  const keep = (rows) => Object.fromEntries(Object.entries(rows).filter(([, v]) => Math.abs(C.sum(v)) >= 0.005).map(([c, v]) => [c, r2(v)]));
+  const summary = { months: C.months, income: keep(C.inc), expenses: keep(C.exp),
+    totals: { income: C.totalIncome, expenses: C.totalExpenses, netIncome: C.netIncome, savingsRate: C.savingsRate },
+    monthlyNet: r2(C.net), excludedTransfers: C.transfers };
+  runAgent("/api/statement/insights", summary, $("insightOut"), $("insights"), "Looking at your categories… (about 6 seconds)");
+});
+</script>
+</body>
+</html>
