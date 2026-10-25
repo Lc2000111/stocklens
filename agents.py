@@ -192,7 +192,9 @@ latest_results (one row per stock, newest snapshot)
   note, error  data caveats; error not null = stock couldn't be analyzed
   run_at       when the snapshot was taken
 
-"High on N measures" at cutoff X = count of pe_pctile >= X, fwd_pctile >= X, peg_pctile >= X (NULLs don't count).
+Expensive vs. cheap: high percentiles = expensive vs. the stock's own history, low = cheap. With "most extreme N%":
+"expensive on K measures" = count of pe_pctile >= 100-N, fwd_pctile >= 100-N, peg_pctile >= 100-N;
+"cheap on K measures" = count of those <= N (NULLs don't count). Default N = 20.
 
 Other tables
   screen_runs(run_id, run_at, ibes_as_of, n_stocks)            one row per refresh

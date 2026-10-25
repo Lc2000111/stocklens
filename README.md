@@ -1,4 +1,4 @@
-# StockLens: is this stock expensive vs. its own history?
+# StockLens: is this stock cheap or expensive vs. its own history?
 
 **Live app: https://stocklens-9saq.onrender.com**. It's on free hosting, so the first visit after a quiet period
 can take up to a minute while the server wakes up.
@@ -12,7 +12,7 @@ answer questions about the data. MGT 409 (AI Foundations for Managers) final pro
 | Page | What you get |
 |---|---|
 | **Lookup** (`/`) | **Market today**: index moves, top headlines with pictures, and the stock getting the **most market attention** (unusual volume × money traded × price move × news mentions), which loads automatically. Then that stock's metrics, price chart with 20/50/100/200-day moving averages, RSI, annual financials, and an **"Explain with AI"** summary. |
-| **P/E Screener** (`/screener`) | Every stock ranked by percentile vs. its own 5 years on trailing P/E, forward P/E or PEG. Badges show stocks expensive on **ALL 3** or **2 OF 3** measures. Filter by index, sector and cutoff. Click **✦** on any row for an inline AI summary. |
+| **P/E Screener** (`/screener`) | Every stock ranked by percentile vs. its own 5 years on trailing P/E, forward P/E or PEG. Show the **expensive** end, the **cheap** end, or **all** stocks, using a "most extreme N%" cutoff. Badges show when **2 or 3 measures agree** (pink **HIGH** / green **LOW**). Filter by index and sector. Click **✦** on any row for an inline AI summary. |
 | **Income Statement** (`/statement`) | Upload bank and credit-card statements (**CSV or PDF**, several at once) and get a **personal income statement**: income, expenses by category, net income and savings rate, month by month. Card payments and transfers between your own accounts are excluded so nothing is counted twice. Re-categorize any transaction, download CSVs, and get AI insights from the category totals. **Try the sample statements** button: three fictional statements in `sample_statements/`. |
 | **Ask AI** (`/ask`) | Ask questions in plain English ("Which tech stocks are high on all 3 measures but still expect 15%+ growth?"). An agent writes read-only SQL against the database, runs it, and answers. You can see the queries it ran. |
 

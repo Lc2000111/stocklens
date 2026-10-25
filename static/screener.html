@@ -57,7 +57,7 @@
   tbody tr:hover { background: rgba(224, 25, 125, 0.07); }
   tr.dim td { opacity: 0.45; }
   .tk { color: var(--pink); font-weight: 800; }
-  .nm { color: var(--muted); font-size: 12.5px; margin-left: 6px; }
+  .nm { color: var(--muted); font-size: 12.5px; margin-left: 6px; display: inline-block; max-width: 150px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; vertical-align: bottom; }
   .warn { color: var(--warn); cursor: help; margin-left: 6px; }
 
   .pbar { display: inline-flex; align-items: center; gap: 10px; }
@@ -65,14 +65,25 @@
   .pbar .fill { height: 100%; background: linear-gradient(90deg, var(--pink-dim), var(--pink)); }
   .pbar .num { font-weight: 800; min-width: 44px; }
   .hot { color: var(--pink); }
+  .cool { color: var(--up); }
+  .pbar .fill.low { background: linear-gradient(90deg, #86efac, var(--up)); }
+  .pbar .fill.mid { background: linear-gradient(90deg, #e5d5de, #b9a6b1); }
 
   .range { width: 112px; height: 26px; display: block; margin-left: auto; }
   .spark { width: 96px; height: 30px; display: block; margin-left: auto; }
   tr.hit3 td:first-child { box-shadow: inset 4px 0 0 var(--pink); }
   tr.hit2 td:first-child { box-shadow: inset 4px 0 0 var(--pink-dim); }
+  tr.low3 td:first-child { box-shadow: inset 4px 0 0 var(--up); }
+  tr.low2 td:first-child { box-shadow: inset 4px 0 0 #86efac; }
   .flag { color: var(--pink); font-weight: 800; }
   .pill { display: inline-block; margin-left: 8px; padding: 1px 6px; border-radius: 999px; background: var(--pink); color: #ffffff; border: 1px solid var(--pink); font-size: 9.5px; font-weight: 800; letter-spacing: 0.4px; vertical-align: 1px; cursor: help; }
   .pill.two { background: transparent; color: var(--pink); }
+  .pill.low { background: var(--up); border-color: var(--up); }
+  .pill.low.two { background: transparent; color: var(--up); }
+  .tile.cheap { border-color: #86efac; background: linear-gradient(160deg, #ecfdf3, var(--panel)); }
+  .tile.cheap .v { color: var(--up); }
+  .seg.dir button[data-d="cheap"].on { background: var(--up); }
+  .seg.dir button[data-d="all"].on { background: var(--text); }
   th[title] { text-decoration: underline dotted var(--pink-dim); text-underline-offset: 3px; }
 
   .empty { text-align: center; color: var(--muted); padding: 50px 0; }
@@ -92,6 +103,7 @@
   th.selcol { color: var(--pink); }
   td.trio { font-weight: 700; color: var(--muted); }
   td.trio.hot { color: var(--pink); }
+  td.trio.cool { color: var(--up); }
   td.trio.sel { background: rgba(224, 25, 125, 0.05); }
   .src { color: var(--muted); font-size: 12.5px; margin: -6px 0 16px; }
   td.aicell { width: 34px; padding-left: 2px; padding-right: 2px; }
@@ -124,9 +136,9 @@
     <nav><a href="/">Lookup</a><a href="/screener" class="on">P/E Screener</a><a href="/ask">Ask AI</a><a href="/statement">Income Statement</a></nav>
   </header>
 
-  <h1>Priced <em>high</em> vs. their own history</h1>
+  <h1>Cheap or expensive <em>vs. their own history</em></h1>
   <p class="sub">The S&amp;P 500, Nasdaq-100 and Dow 30, ranked by where today's valuation sits within its own range over the past 5 years.
-    A 90th-percentile stock is more expensive than it was 90% of the time over that period, on the measure you pick below.</p>
+    A 90th-percentile stock is more expensive than it was 90% of the time over that period; a 10th-percentile stock is cheaper than it was 90% of the time.</p>
 
   <div class="controls">
     <span><span class="ctl-label">Rank by</span><span class="seg" id="basis">
@@ -134,7 +146,12 @@
       <button data-b="forward" title="Price ÷ consensus EPS for the next 12 months · monthly history (I/B/E/S)">Forward P/E</button>
       <button data-b="peg" title="Forward P/E ÷ expected next-year EPS growth · monthly history (I/B/E/S)">PEG</button>
     </span></span>
-    <label>Percentile ≥ <b id="thVal">80th</b><input type="range" id="th" min="50" max="99" value="80" /></label>
+    <span><span class="ctl-label">Show</span><span class="seg dir" id="dir">
+      <button data-d="expensive" class="on" title="Stocks near the top of their own 5-year range">Expensive</button>
+      <button data-d="cheap" title="Stocks near the bottom of their own 5-year range">Cheap</button>
+      <button data-d="all" title="Every stock, from most expensive to cheapest">All</button>
+    </span></span>
+    <label title="How extreme a stock must be vs. its own history to count as expensive (top N%) or cheap (bottom N%)">Most extreme <b id="thVal">20%</b><input type="range" id="th" min="5" max="50" step="5" value="20" /></label>
     <select id="list" title="Which stock list to show">
       <option value="all">All companies</option>
       <option value="sp500">S&amp;P 500</option>
@@ -145,11 +162,10 @@
     <select id="sector" title="Filter by sector"><option value="">All sectors</option></select>
   </div>
   <div class="controls">
-    <label><input type="checkbox" id="showAll" /> Show all stocks</label>
-    <select id="hitFilter" title="How many of the three measures (trailing P/E, forward P/E, PEG) must be at or above the cutoff">
-      <option value="0">Any measure</option>
-      <option value="2">High on 2+ measures</option>
-      <option value="3">High on all 3 measures</option>
+    <select id="hitFilter" title="How many of the three measures (trailing P/E, forward P/E, PEG) must agree">
+      <option value="0">Ranked measure only</option>
+      <option value="2">2+ measures agree</option>
+      <option value="3">All 3 measures agree</option>
     </select>
     <label><input type="checkbox" id="showFlagged" /> Include spin-off-affected stocks</label>
     <span class="spacer"></span>
@@ -176,8 +192,9 @@
     <p><b>Forward P/E</b> (monthly, I/B/E/S via WRDS) = price ÷ analysts' consensus EPS for the <em>next twelve months</em>. That's a blend of this fiscal year's and next fiscal year's consensus, weighted by how much of this year is left, which is the standard way forward P/E is quoted. Each month uses the estimates analysts actually had <em>at that time</em>, so the history isn't distorted by hindsight.</p>
     <p><b>PEG</b> (monthly, I/B/E/S) = forward P/E ÷ expected EPS growth, where growth = next fiscal year's consensus ÷ this year's − 1. Shown as n/m when expected growth is below 2% (dividing by a near-zero growth rate gives a huge, meaningless PEG). I/B/E/S also has a long-term growth estimate, but only 1–4 analysts provide it per stock, so it's shown only in the tooltip.</p>
     <p><b>Percentile</b> = share of the past 5 years (days for trailing, months for forward and PEG) with a value at or below today's. Today's forward P/E and PEG use today's price with the latest I/B/E/S consensus. I/B/E/S arrives monthly with a lag; the date is shown above the table.</p>
-    <p><b>ALL 3 / 2 OF 3</b> counts how many of the three measures (trailing P/E, forward P/E and PEG) are at or above your percentile cutoff. <b>ALL 3</b> (solid badge) means the stock looks expensive against its own history whichever way you measure it: on past earnings, on expected earnings, <em>and</em> on the price paid per unit of expected growth. <b>2 OF 3</b> (outlined badge) means two of the three agree; hover the badge to see which. A high trailing percentile on its own often just means earnings are expected to recover or jump, so the more measures agree, the stronger the signal. PEG shows n/m (and can't count) when expected growth is under 2%.</p>
-    <p><b>Caveats.</b> Trailing EPS uses the <em>adjusted</em> figures analysts track, so it can differ from the GAAP P/E on the Lookup page. A high percentile can mean the price ran up <em>or</em> earnings/estimates fell. Stocks with a spin-off in the window (<span class="warn">⚠</span>) are hidden by default because their earnings before and after aren't comparable. Forward and PEG percentiles need at least 24 months of I/B/E/S history; newer listings show "short". Refresh the I/B/E/S data monthly with <code>.venv/bin/python ibes.py</code>.</p>
+    <p><b>Expensive / Cheap.</b> "Most extreme 20%" means a stock counts as <b>expensive</b> at the 80th percentile or above, and <b>cheap</b> at the 20th or below, against its own 5-year history.</p>
+    <p><b>Badges</b> count how many of the three measures (trailing P/E, forward P/E and PEG) agree. <span class="pill" style="margin:0">ALL 3 HIGH</span> means the stock looks expensive against its own history whichever way you measure it, and <span class="pill low" style="margin:0">ALL 3 LOW</span> means it looks cheap on all three. Outlined <b>2 OF 3</b> badges mean two agree; hover a badge to see which. One measure on its own can mislead: a high trailing P/E may just mean earnings are about to jump, and a low one may come from a one-time gain inflating EPS. So the more measures agree, the stronger the signal. PEG shows n/m (and can't count) when expected growth is under 2%.</p>
+    <p><b>Caveats.</b> Trailing EPS uses the <em>adjusted</em> figures analysts track, so it can differ from the GAAP P/E on the Lookup page. A high percentile can mean the price ran up <em>or</em> earnings/estimates fell; a low one can mean the price fell <em>or</em> earnings rose. Cheap isn't automatically a bargain: it can reflect real problems. Stocks with a spin-off in the window (<span class="warn">⚠</span>) are hidden by default because their earnings before and after aren't comparable. Forward and PEG percentiles need at least 24 months of I/B/E/S history; newer listings show "short". Refresh the I/B/E/S data monthly with <code>.venv/bin/python ibes.py</code>.</p>
     <p><b>Data storage.</b> Everything is saved in a SQLite database, <code>stocklens.db</code>. Each "Refresh prices" adds a snapshot, so you can see how valuations change over time. Edit the stock lists in <code>universe.py</code>; update the S&amp;P 500 list with <code>.venv/bin/python update_index_lists.py</code>.</p>
   </div>
   <footer>Trailing data: Yahoo Finance via yfinance · Forward data: LSEG I/B/E/S via WRDS · not investment advice</footer>
@@ -188,7 +205,7 @@ const $ = (id) => document.getElementById(id);
 const isNum = (v) => typeof v === "number" && isFinite(v);
 const NA = '<span style="color:#b3a3ab">—</span>';
 const NM = '<span title="Not meaningful: negative/zero earnings or expected growth under 2%" style="color:var(--muted)">n/m</span>';
-let data = null, basis = "trailing", sortKey = "pct", sortDir = -1;
+let data = null, basis = "trailing", dir = "expensive", sortKey = "pct", sortDir = -1;
 
 // What each "Rank by" option reads from a result row
 const BASES = {
@@ -226,18 +243,34 @@ $("head").addEventListener("click", (e) => {
   sortKey = k;
   render();
 });
+// Bookmarkable views: /screener#forward, /screener#peg-cheap, /screener#trailing-all
+const updateHash = () => history.replaceState(null, "", "#" + basis + (dir !== "expensive" ? "-" + dir : ""));
 function setBasis(b) {
-  basis = b; sortKey = "pct"; sortDir = -1;
+  basis = b; sortKey = "pct"; sortDir = dir === "cheap" ? 1 : -1;
   [...$("basis").children].forEach(x => x.classList.toggle("on", x.dataset.b === b));
-  history.replaceState(null, "", "#" + b);  // bookmarkable: /screener#forward
+  updateHash();
 }
+function setDir(d) {
+  dir = d; sortKey = "pct"; sortDir = d === "cheap" ? 1 : -1;   // cheapest first when looking for cheap stocks
+  [...$("dir").children].forEach(x => x.classList.toggle("on", x.dataset.d === d));
+  updateHash();
+}
+$("dir").addEventListener("click", (e) => {
+  const d = e.target.dataset.d;
+  if (!d) return;
+  setDir(d);
+  render();
+});
 $("basis").addEventListener("click", (e) => {
   const b = e.target.dataset.b;
   if (!b || e.target.disabled) return;
   setBasis(b);
   render();
 });
-if (BASES[location.hash.slice(1)]) setBasis(location.hash.slice(1));
+for (const part of location.hash.slice(1).split("-")) {
+  if (BASES[part]) setBasis(part);
+  if (["expensive", "cheap", "all"].includes(part)) setDir(part);
+}
 
 // Mini chart: 5Y min–max bar with the median tick and today's dot (range stretches if today is a new extreme)
 function rangeSvg(r) {
@@ -272,9 +305,10 @@ const pctText = (v) => isNum(v) ? v.toFixed(0) + "th" : NA;
 
 function render() {
   renderHead();
-  const th = +$("th").value;
-  $("thVal").textContent = th + "th";
+  const N = +$("th").value, hiTh = 100 - N, loTh = N;     // expensive ≥ hiTh, cheap ≤ loTh
+  $("thVal").textContent = N + "%";
   if (!data) return;
+  const isHigh = (v) => isNum(v) && v >= hiTh, isLow = (v) => isNum(v) && v <= loTh;
 
   const hasIbes = data.results.some(r => isNum(r.fwdPctile));
   [...$("basis").children].forEach(b => { if (b.dataset.b !== "trailing") b.disabled = !hasIbes; });
@@ -295,52 +329,65 @@ function render() {
   const all = data.results.filter(r =>
     (listName === "all" || (r.lists || []).includes(listName)) && (!sector || r.sector === sector));
   const pk = B().pct;
-  // Which of the three measures put this stock at or above the cutoff?
+  // Which of the three measures put this stock in the expensive (high) or cheap (low) zone?
   const MEASURES = [["percentile", "Trailing P/E"], ["fwdPctile", "Forward P/E"], ["pegPctile", "PEG"]];
-  const hitsOf = (r) => r.unreliable ? [] : MEASURES.filter(([k]) => isNum(r[k]) && r[k] >= th).map(([, label]) => label);
-  const hitCount = (r) => hitsOf(r).length;
+  const hitsOf = (r, side) => r.unreliable ? [] :
+    MEASURES.filter(([k]) => side === "high" ? isHigh(r[k]) : isLow(r[k])).map(([, label]) => label);
   const scored = all.filter(r => isNum(r[pk]));
   const reliable = scored.filter(r => !r.unreliable);
-  const hits = reliable.filter(r => r[pk] >= th);
-  const all3 = all.filter(r => hitCount(r) === 3).sort((a, b) => b[pk] - a[pk]);
-  const two = all.filter(r => hitCount(r) === 2).sort((a, b) => b[pk] - a[pk]);
+  const hiNow = reliable.filter(r => isHigh(r[pk])), loNow = reliable.filter(r => isLow(r[pk]));
+  const hi3 = all.filter(r => hitsOf(r, "high").length === 3).sort((a, b) => b[pk] - a[pk]);
+  const lo3 = all.filter(r => hitsOf(r, "low").length === 3).sort((a, b) => a[pk] - b[pk]);
   const tickerList = (arr) => `${arr.slice(0, 8).map(r => r.symbol).join(" · ")}${arr.length > 8 ? ` · +${arr.length - 8} more` : ""}`;
+  const notScored = all.length - scored.length;
 
   $("tiles").innerHTML = `
-    <div class="tile accent"><div class="k">${B().label} ≥ ${th}th percentile</div><div class="v">${hits.length} <span style="font-size:15px;color:var(--muted)">of ${reliable.length}</span></div></div>
-    <div class="tile accent" title="At or above the cutoff on trailing P/E, forward P/E and PEG"><div class="k">High on all 3 measures</div><div class="v">${all3.length} <span style="font-size:14px;color:var(--muted);font-weight:600">${tickerList(all3)}</span></div></div>
-    <div class="tile" title="At or above the cutoff on exactly two of the three measures"><div class="k">High on 2 of 3</div><div class="v">${two.length} <span style="font-size:14px;color:var(--muted);font-weight:600">${tickerList(two)}</span></div></div>
-    <div class="tile"><div class="k">Median ${B().label} percentile</div><div class="v">${reliable.length ? median(reliable.map(r => r[pk])).toFixed(0) + "th" : "—"}</div></div>
-    <div class="tile"><div class="k">Not scored on ${B().label}</div><div class="v" title="${all.filter(r => !isNum(r[pk])).map(r => r.symbol).join(", ")}">${all.length - scored.length}</div></div>`;
+    <div class="tile accent" title="${B().label} at or above the ${hiTh}th percentile of its own 5-year history"><div class="k">Expensive · ${B().label} ≥ ${hiTh}th</div><div class="v">${hiNow.length} <span style="font-size:15px;color:var(--muted)">of ${reliable.length}</span></div></div>
+    <div class="tile cheap" title="${B().label} at or below the ${loTh}th percentile of its own 5-year history"><div class="k">Cheap · ${B().label} ≤ ${loTh}th</div><div class="v">${loNow.length} <span style="font-size:15px;color:var(--muted)">of ${reliable.length}</span></div></div>
+    <div class="tile accent" title="Expensive on trailing P/E, forward P/E and PEG"><div class="k">Expensive on all 3</div><div class="v">${hi3.length} <span style="font-size:14px;color:var(--muted);font-weight:600">${tickerList(hi3)}</span></div></div>
+    <div class="tile cheap" title="Cheap on trailing P/E, forward P/E and PEG"><div class="k">Cheap on all 3</div><div class="v">${lo3.length} <span style="font-size:14px;color:var(--muted);font-weight:600">${tickerList(lo3)}</span></div></div>
+    <div class="tile" title="${notScored} stock(s) not scored on ${B().label}: ${all.filter(r => !isNum(r[pk])).map(r => r.symbol).join(", ")}"><div class="k">Median ${B().label} percentile</div><div class="v">${reliable.length ? median(reliable.map(r => r[pk])).toFixed(0) + "th" : "—"}</div></div>`;
 
-  let rows = $("showAll").checked ? all.slice() : scored.filter(r => r[pk] >= th);
-  if (!$("showFlagged").checked) rows = rows.filter(r => !r.unreliable);
+  // Which rows to show: the expensive zone, the cheap zone, or everything
   const minHits = +$("hitFilter").value;
-  if (minHits) rows = all.filter(r => hitCount(r) >= minHits && ($("showFlagged").checked || !r.unreliable));
+  const inZone = (r) => dir === "expensive" ? isHigh(r[pk]) : dir === "cheap" ? isLow(r[pk]) : isNum(r[pk]);
+  const agrees = (r) => dir === "expensive" ? hitsOf(r, "high").length : dir === "cheap" ? hitsOf(r, "low").length
+                                            : Math.max(hitsOf(r, "high").length, hitsOf(r, "low").length);
+  let rows = minHits ? all.filter(r => agrees(r) >= minHits) : all.filter(inZone);
+  if (!$("showFlagged").checked) rows = rows.filter(r => !r.unreliable);
+  // vs. its own 5-year median (e.g. 0.6 = 40% below): breaks ties among stocks at the same percentile
+  const vsMed = (r) => isNum(r[B().now]) && isNum(r[B().med]) && r[B().med] > 0 ? r[B().now] / r[B().med] : null;
   rows.sort((a, b) => {
     if (sortKey === "symbol") return sortDir * a.symbol.localeCompare(b.symbol);
     const A = sortVal(a, sortKey), Bv = sortVal(b, sortKey);
-    return sortDir * ((isNum(A) ? A : -Infinity) - (isNum(Bv) ? Bv : -Infinity));
+    const d = sortDir * ((isNum(A) ? A : -Infinity) - (isNum(Bv) ? Bv : -Infinity));
+    if (d || sortKey !== "pct") return d;
+    return sortDir * ((vsMed(a) ?? 1) - (vsMed(b) ?? 1));
   });
 
   $("empty").style.display = rows.length ? "none" : "";
-  $("empty").textContent = `No stocks at or above the ${th}th percentile on ${B().label}${sector ? " in " + sector : ""}. Lower the cutoff, change the filters, or tick "Show all stocks".`;
+  $("empty").textContent = `No ${dir === "all" ? "" : dir + " "}stocks on ${B().label}${sector ? " in " + sector : ""} with these settings. Widen "Most extreme", change the filters, or choose All.`;
   $("rows").innerHTML = rows.map((r, i) => {
     const now = r[B().now], pct = r[pk], scoredRow = isNum(pct);
-    const dim = $("showAll").checked && (!scoredRow || pct < th || r.unreliable);
+    const dim = r.unreliable || !scoredRow;
     const note = r.note || r.error;
-    const hits = hitsOf(r), n = hits.length;
+    const hiH = hitsOf(r, "high"), loH = hitsOf(r, "low");
+    const side = hiH.length >= 2 ? "high" : loH.length >= 2 ? "low" : null;
+    const hits = side === "high" ? hiH : side === "low" ? loH : [], n = hits.length;
+    const zone = (v) => isHigh(v) ? "hot" : isLow(v) ? "cool" : "";
     const shortHist = `<span class="short" title="${(r.fwdNote || "").replace(/"/g, "&quot;")}">short</span>`;
-    const trio = (k, b) => `<td class="trio ${isNum(r[k]) && r[k] >= th ? "hot" : ""} ${basis === b ? "sel" : ""}">${
+    const trio = (k, b) => `<td class="trio ${zone(r[k])} ${basis === b ? "sel" : ""}">${
       isNum(r[k]) ? pctText(r[k]) : (b !== "trailing" && r.fwdNote ? shortHist : NA)}</td>`;
+    const rowCls = side === "high" ? (n === 3 ? "hit3" : "hit2") : side === "low" ? (n === 3 ? "low3" : "low2") : "";
+    const badge = side ? `<span class="pill ${side === "low" ? "low" : ""} ${n === 2 ? "two" : ""}" title="${side === "high" ? `At or above the ${hiTh}th` : `At or below the ${loTh}th`} percentile on: ${hits.join(", ")}">${n === 3 ? "ALL 3" : "2 OF 3"} ${side === "high" ? "HIGH" : "LOW"}</span>` : "";
     const growthTip = isNum(r.ltg) ? `Long-term growth estimate: ${r.ltg.toFixed(1)}% (${r.ltgAnalysts ?? "?"} analysts)` : "";
-    return `<tr class="${dim ? "dim" : ""} ${n === 3 ? "hit3" : n === 2 ? "hit2" : ""}" data-s="${r.symbol}">
+    return `<tr class="${dim ? "dim" : ""} ${rowCls}" data-s="${r.symbol}">
       <td class="left" style="color:var(--muted)">${i + 1}</td>
-      <td class="left" title="${[r.sector, r.industry].filter(Boolean).join(" · ")}"><span class="tk">${r.symbol}</span><span class="nm">${r.name}</span>${n >= 2 ? `<span class="pill ${n === 2 ? "two" : ""}" title="At or above the ${th}th percentile on: ${hits.join(", ")}">${n === 3 ? "ALL 3" : "2 OF 3"}</span>` : ""}${note ? `<span class="warn" title="${note.replace(/"/g, "&quot;")}">⚠</span>` : ""}</td>
+      <td class="left" title="${[r.sector, r.industry].filter(Boolean).join(" · ")}"><span class="tk">${r.symbol}</span><span class="nm" title="${r.name}">${r.name}</span>${badge}${note ? `<span class="warn" title="${note.replace(/"/g, "&quot;")}">⚠</span>` : ""}</td>
       <td><b>${isNum(now) ? B().fmt(now) : (r.error ? NA : NM)}</b></td>
       <td>${isNum(r[B().med]) ? B().fmt(r[B().med]) : NA}</td>
       <td>${scoredRow && isNum(now) && isNum(r[B().min]) ? rangeSvg(r) : NA}</td>
-      <td>${scoredRow ? `<span class="pbar"><span class="track"><span class="fill" style="width:${pct}%;display:block"></span></span><span class="num ${pct >= th ? "hot" : ""}">${pct.toFixed(0)}th</span></span>` : NA}</td>
+      <td>${scoredRow ? `<span class="pbar"><span class="track"><span class="fill ${isHigh(pct) ? "" : isLow(pct) ? "low" : "mid"}" style="width:${Math.max(pct, 2)}%;display:block"></span></span><span class="num ${zone(pct)}">${pct.toFixed(0)}th</span></span>` : NA}</td>
       ${trio("percentile", "trailing")}${trio("fwdPctile", "forward")}${trio("pegPctile", "peg")}
       <td title="${growthTip}">${isNum(r.growth) ? `<span class="${r.growth >= 0 ? "up" : "down"}">${r.growth >= 0 ? "+" : ""}${(r.growth * 100).toFixed(0)}%</span>` : NA}</td>
       <td>${sparkSvg(r[B().spark], basis === "trailing" ? null : now)}</td>
@@ -409,7 +456,7 @@ $("rows").addEventListener("click", (e) => {
   const tr = e.target.closest("tr[data-s]");
   if (tr) location.href = "/#" + tr.dataset.s;
 });
-["th", "showAll", "showFlagged", "hitFilter", "list", "sector"].forEach(id => $(id).addEventListener("input", render));
+["th", "showFlagged", "hitFilter", "list", "sector"].forEach(id => $(id).addEventListener("input", render));
 
 // ---------- Data loading + background refresh ----------
 async function poll() {
