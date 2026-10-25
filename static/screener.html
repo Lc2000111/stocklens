@@ -162,11 +162,6 @@
     <select id="sector" title="Filter by sector"><option value="">All sectors</option></select>
   </div>
   <div class="controls">
-    <select id="sortMode" title="Order of the list">
-      <option value="low">Sort: cheapest first</option>
-      <option value="high">Sort: most expensive first</option>
-      <option value="custom" hidden>Sort: by column</option>
-    </select>
     <select id="hitFilter" title="How many of the three measures (trailing P/E, forward P/E, PEG) must agree">
       <option value="0">Ranked measure only</option>
       <option value="2">2+ measures agree</option>
@@ -248,17 +243,16 @@ $("head").addEventListener("click", (e) => {
     setSortMode(sortMode === "high" ? "low" : "high");          // Percentile header: highest ↔ lowest
   } else {
     sortDir = k === sortKey ? -sortDir : (k === "symbol" ? 1 : -1);
-    sortKey = k; sortMode = "custom"; $("sortMode").value = "custom";
+    sortKey = k; sortMode = "custom";
   }
   render();
 });
 // Sort modes for the percentile: highest first or lowest first
 let sortMode = "high";
 function setSortMode(m) {
-  sortMode = m; $("sortMode").value = m;
+  sortMode = m;
   sortKey = "pct"; sortDir = m === "low" ? 1 : -1;
 }
-$("sortMode").addEventListener("change", () => { setSortMode($("sortMode").value); render(); });
 // Bookmarkable views: /screener#forward, /screener#peg-cheap, /screener#trailing-all
 const updateHash = () => history.replaceState(null, "", "#" + basis + (dir !== "expensive" ? "-" + dir : ""));
 function setBasis(b) {
