@@ -165,7 +165,6 @@
     <select id="sortMode" title="Order of the list">
       <option value="low">Sort: cheapest first</option>
       <option value="high">Sort: most expensive first</option>
-      <option value="extreme">Sort: both extremes (alternating)</option>
       <option value="custom" hidden>Sort: by column</option>
     </select>
     <select id="hitFilter" title="How many of the three measures (trailing P/E, forward P/E, PEG) must agree">
@@ -240,7 +239,7 @@ const sortVal = (r, k) => k === "pct" ? r[B().pct] : k === "now" ? r[B().now] : 
 
 function renderHead() {
   $("head").innerHTML = COLS().map(([label, key, cls, tip]) =>
-    `<th class="${cls || ""} ${key === sortKey ? "sorted" : ""}" data-k="${key || ""}"${tip ? ` title="${tip}"` : ""}>${label}${key === sortKey ? (key === "pct" && sortMode === "extreme" ? " ↕" : sortDir < 0 ? " ↓" : " ↑") : ""}</th>`).join("");
+    `<th class="${cls || ""} ${key === sortKey ? "sorted" : ""}" data-k="${key || ""}"${tip ? ` title="${tip}"` : ""}>${label}${key === sortKey ? (sortDir < 0 ? " ↓" : " ↑") : ""}</th>`).join("");
 }
 $("head").addEventListener("click", (e) => {
   const k = e.target.dataset.k;
@@ -253,7 +252,7 @@ $("head").addEventListener("click", (e) => {
   }
   render();
 });
-// Sort modes for the percentile: highest first, lowest first, or both extremes first (distance from the 50th)
+// Sort modes for the percentile: highest first or lowest first
 let sortMode = "high";
 function setSortMode(m) {
   sortMode = m; $("sortMode").value = m;
@@ -376,20 +375,7 @@ function render() {
   if (!$("showFlagged").checked) rows = rows.filter(r => !r.unreliable);
   // vs. its own 5-year median (e.g. 0.6 = 40% below): breaks ties among stocks at the same percentile
   const vsMed = (r) => isNum(r[B().now]) && isNum(r[B().med]) && r[B().med] > 0 ? r[B().now] / r[B().med] : null;
-  const byPct = (dirn) => (a, b) => dirn * ((isNum(a[pk]) ? a[pk] : -Infinity) - (isNum(b[pk]) ? b[pk] : -Infinity))
-                                    || dirn * ((vsMed(a) ?? 1) - (vsMed(b) ?? 1));
-  if (sortKey === "pct" && sortMode === "extreme") {
-    // "Both extremes": alternate most expensive, cheapest, 2nd most expensive, 2nd cheapest, …
-    const high = rows.filter(r => isNum(r[pk]) && r[pk] >= 50).sort(byPct(-1));
-    const low = rows.filter(r => isNum(r[pk]) && r[pk] < 50).sort(byPct(1));
-    const rest = rows.filter(r => !isNum(r[pk]));
-    rows = [];
-    for (let i = 0; i < Math.max(high.length, low.length); i++) {
-      if (high[i]) rows.push(high[i]);
-      if (low[i]) rows.push(low[i]);
-    }
-    rows.push(...rest);
-  } else rows.sort((a, b) => {
+  rows.sort((a, b) => {
     if (sortKey === "symbol") return sortDir * a.symbol.localeCompare(b.symbol);
     const A = sortVal(a, sortKey), Bv = sortVal(b, sortKey);
     const d = sortDir * ((isNum(A) ? A : -Infinity) - (isNum(Bv) ? Bv : -Infinity));
