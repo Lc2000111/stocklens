@@ -143,6 +143,19 @@
   <div id="result">
     <div class="tiles" id="tiles"></div>
 
+    <div class="panel plan">
+      <h3>Investing plan</h3>
+      <div class="plan-row">
+        <label for="investPct">Percent of net income to invest</label>
+        <input type="range" id="investPct" min="0" max="100" step="5" value="50" />
+        <span class="pct" id="investPctVal">50%</span>
+        <span class="presets" id="presets">
+          <button data-p="20">20%</button><button data-p="50">50%</button><button data-p="80">80%</button><button data-p="100">100%</button>
+        </span>
+      </div>
+      <div id="planOut"></div>
+    </div>
+
     <div class="panel">
       <h3>Statements read</h3>
       <div class="files" id="fileinfo"></div>
@@ -158,18 +171,6 @@
       </div>
     </div>
 
-    <div class="panel plan">
-      <h3>Investing plan</h3>
-      <div class="plan-row">
-        <label for="investPct">Percent of net income to invest</label>
-        <input type="range" id="investPct" min="0" max="100" step="5" value="50" />
-        <span class="pct" id="investPctVal">50%</span>
-        <span class="presets" id="presets">
-          <button data-p="20">20%</button><button data-p="50">50%</button><button data-p="80">80%</button><button data-p="100">100%</button>
-        </span>
-      </div>
-      <div id="planOut"></div>
-    </div>
 
     <div class="grid2">
       <div class="panel">
