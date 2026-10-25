@@ -1,11 +1,12 @@
-# StockLens: is this stock cheap or expensive vs. its own history?
+# StockLens: from your bank statements to your next investment
 
 **Live app: https://stocklens-9saq.onrender.com**. It's on free hosting, so the first visit after a quiet period
 can take up to a minute while the server wakes up.
 
-StockLens screens the **S&P 500, Nasdaq-100 and Dow 30** (516 stocks) and shows where each one's **trailing P/E,
-forward P/E and PEG** sit against **its own 5-year history**. AI agents explain the numbers in plain English and
-answer questions about the data. MGT 409 (AI Foundations for Managers) final project · Josh Liang.
+Upload your bank and credit-card statements to see **how much you can invest each month** (a personal income
+statement plus an investing-plan slider). Then quickly find **which stocks to look at**: StockLens ranks the
+**S&P 500, Nasdaq-100 and Dow 30** (516 stocks) by where each one's **trailing P/E, forward P/E and PEG** sit against
+**its own 5-year history**, and AI agents explain why and answer your questions. MGT 409 (AI Foundations for Managers) final project · Josh Liang.
 
 **Project write-up:** [`report.html`](report.html) (report) · [`slides.html`](slides.html) (reveal.js deck). Download and open in a browser.
 

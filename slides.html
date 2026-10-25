@@ -30,39 +30,40 @@
 
 <section class="center">
   <div class="logo">Stock<span class="pink">Lens</span></div>
-  <p style="font-size:0.95em">Is a stock <b class="green">cheap</b> or <b class="pink">expensive</b>, compared with <i>its own</i> history, and why?<br>
-  Plus: your personal income statement from your bank statements.</p>
+  <p style="font-size:0.95em">From your <b>bank statements</b> to your <b class="pink">next investment</b>, in one place.</p>
+  <p style="font-size:0.75em" class="muted">Upload statements → see how much you can invest each month →
+  find stocks that look <b class="green">cheap</b> or <b class="pink">expensive</b> vs. their own history, and why</p>
   <p class="small">Josh Liang · MGT 409 AI Foundations for Managers · Final project<br>
   App: <a href="https://stocklens-9saq.onrender.com">stocklens-9saq.onrender.com</a> · Repo: <a href="https://github.com/Lc2000111/stocklens">github.com/Lc2000111/stocklens</a></p>
 </section>
 
 <section>
   <span class="tag">The problem</span>
-  <h2>Two questions every investor asks</h2>
+  <h2>Two questions, in this order, in two different tools</h2>
   <div class="cols">
-    <div><p><b>"Is this stock expensive?"</b></p><ul>
-      <li>A P/E alone means little: 28× is cheap for one company, pricey for another</li>
-      <li>The useful comparison is <b>vs. its own history</b>, which today needs paid terminals (Koyfin $39–79/mo), one stock at a time</li>
-      <li>Forward-P/E history needs institutional analyst data</li></ul></div>
-    <div><p><b>"Where does my money go?"</b></p><ul>
+    <div><p><b>1. "How much can I invest each month?"</b></p><ul>
       <li>Only <b>29%</b> reviewed a budget in a month; <b>13%</b> track every dollar</li>
       <li>Apps cost ~$95–109/yr and want bank logins</li>
       <li>Spreadsheets double-count card payments: <b>+73%</b> expenses on our sample</li></ul></div>
+    <div><p><b>2. "Which stocks are reasonably priced?"</b></p><ul>
+      <li>A P/E alone means little: 28× is cheap for one company, pricey for another</li>
+      <li>The useful comparison is <b>vs. its own history</b>, which today needs paid terminals (Koyfin $39–79/mo), one stock at a time</li>
+      <li>Forward-P/E history needs institutional analyst data</li></ul></div>
   </div>
   <p class="small">62% of Americans own stock (Gallup 2025) · Bankrate via CPA Practice Advisor 2025 · Verasight 2026 · vendor/pricing trackers</p>
 </section>
 
 <section>
   <span class="tag">What's new</span>
-  <h2>StockLens: own-history valuation, explained</h2>
+  <h2>One workflow: statements → monthly amount → stocks</h2>
   <ul>
-    <li><b>516 stocks</b> (S&amp;P 500, Nasdaq-100, Dow 30) ranked vs. <b>their own 5 years</b> on trailing P/E, forward P/E and PEG</li>
-    <li>Forward history from <b>I/B/E/S</b>: the consensus analysts actually had each month, so no hindsight</li>
-    <li>An agent explains <b>why</b> a P/E is high or low: price vs. earnings, growth, headlines</li>
-    <li><b>Ask AI</b>: plain-English questions → SQL, with the queries shown</li>
-    <li><b>Income statement</b> from CSV/PDF statements: no bank login, nothing stored, transfers excluded</li>
-    <li>Market tab: today's <b>most-watched stock</b> by a transparent attention score</li>
+    <li><b>1 · Upload statements</b> (CSV/PDF) → personal income statement: no bank login, nothing stored, transfers excluded</li>
+    <li><b>2 · Investing plan</b>: choose a % of net income → <b>how much to invest each month</b></li>
+    <li><b>3 · Find stocks</b>: 516 stocks ranked vs. <b>their own 5 years</b> (trailing P/E, forward P/E from I/B/E/S, PEG), cheapest first, with analyst upside</li>
+    <li><b>4 · Understand why</b>: an agent explains each P/E (price vs. earnings, growth, headlines); <b>Ask AI</b> answers questions with SQL</li>
+    <li>Plus: today's <b>most-watched stock</b> on the Market tab</li>
   </ul>
+  <p class="small">A research tool, not advice: "cheap vs. its own history" is a starting point.</p>
 </section>
 
 <section>
