@@ -163,9 +163,9 @@
   </div>
   <div class="controls">
     <select id="sortMode" title="Order of the list">
-      <option value="extreme">Sort: both extremes (alternating)</option>
-      <option value="high">Sort: most expensive first</option>
       <option value="low">Sort: cheapest first</option>
+      <option value="high">Sort: most expensive first</option>
+      <option value="extreme">Sort: both extremes (alternating)</option>
       <option value="custom" hidden>Sort: by column</option>
     </select>
     <select id="hitFilter" title="How many of the three measures (trailing P/E, forward P/E, PEG) must agree">
@@ -264,13 +264,13 @@ $("sortMode").addEventListener("change", () => { setSortMode($("sortMode").value
 const updateHash = () => history.replaceState(null, "", "#" + basis + (dir !== "expensive" ? "-" + dir : ""));
 function setBasis(b) {
   basis = b;
-  if (typeof setSortMode === "function") setSortMode(dir === "cheap" ? "low" : dir === "all" ? "extreme" : "high");
+  if (typeof setSortMode === "function") setSortMode(dir === "expensive" ? "high" : "low");
   [...$("basis").children].forEach(x => x.classList.toggle("on", x.dataset.b === b));
   updateHash();
 }
 function setDir(d) {
   dir = d;
-  setSortMode(d === "cheap" ? "low" : d === "all" ? "extreme" : "high");   // All → both ends first
+  setSortMode(d === "expensive" ? "high" : "low");   // Cheap and All → cheapest first; Expensive → most expensive first
   [...$("dir").children].forEach(x => x.classList.toggle("on", x.dataset.d === d));
   updateHash();
 }
