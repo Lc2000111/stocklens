@@ -85,6 +85,24 @@
   .how.rule { background: #f1f5f9; color: #475569; } .how.ai { background: #fde7f1; color: var(--pink); }
   .how.you { background: #dcfce7; color: var(--up); } .how.default { background: #fef3c7; color: #92400e; }
   .status { text-align: center; color: var(--muted); padding: 30px 0; }
+  .plan { border-color: var(--pink-dim); background: linear-gradient(160deg, #fdf3f8, #ffffff 60%); }
+  .plan-row { display: flex; align-items: center; gap: 18px; flex-wrap: wrap; margin: 4px 0 16px; }
+  .plan-row label { font-weight: 700; }
+  .plan-row input[type=range] { accent-color: var(--pink); width: 320px; max-width: 100%; }
+  .plan-row .pct { font-size: 28px; font-weight: 800; color: var(--pink); min-width: 70px; font-variant-numeric: tabular-nums; }
+  .plan-row .presets { display: flex; gap: 6px; }
+  .plan-row .presets button { background: #fff; border: 1px solid var(--border); border-radius: 999px; padding: 4px 11px; font-size: 12.5px; font-weight: 700; cursor: pointer; color: var(--muted); }
+  .plan-row .presets button:hover, .plan-row .presets button.on { border-color: var(--pink); color: var(--pink); }
+  .plan-tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 12px; }
+  .plan-tiles .tile .v { font-size: 22px; }
+  .plan-tiles .tile.big { border-color: var(--pink); }
+  .plan-tiles .tile.big .v { color: var(--pink); font-size: 26px; }
+  .plan-note { color: var(--muted); font-size: 12.5px; margin-top: 12px; }
+  .plan-split { height: 12px; border-radius: 6px; background: var(--panel-2); overflow: hidden; display: flex; margin: 14px 0 4px; border: 1px solid var(--border); }
+  .plan-split .inv { background: linear-gradient(90deg, var(--pink-dim), var(--pink)); }
+  .plan-split .cash { background: #e9dfe5; }
+  .plan-legend { display: flex; gap: 16px; font-size: 12.5px; color: var(--muted); }
+  .plan-legend i { display: inline-block; width: 10px; height: 10px; border-radius: 3px; margin-right: 5px; vertical-align: -1px; }
   .spinner { width: 30px; height: 30px; border: 3px solid var(--border); border-top-color: var(--pink); border-radius: 50%; animation: spin 0.8s linear infinite; margin: 0 auto 12px; }
   @keyframes spin { to { transform: rotate(360deg); } }
   .err { color: var(--down); text-align: center; padding: 14px; }
@@ -138,6 +156,19 @@
         <button class="btn ghost" id="dlIS">Download statement (CSV)</button>
         <button class="btn ghost" id="dlTx">Download transactions (CSV)</button>
       </div>
+    </div>
+
+    <div class="panel plan">
+      <h3>Investing plan</h3>
+      <div class="plan-row">
+        <label for="investPct">Percent of net income to invest</label>
+        <input type="range" id="investPct" min="0" max="100" step="5" value="50" />
+        <span class="pct" id="investPctVal">50%</span>
+        <span class="presets" id="presets">
+          <button data-p="20">20%</button><button data-p="50">50%</button><button data-p="80">80%</button><button data-p="100">100%</button>
+        </span>
+      </div>
+      <div id="planOut"></div>
     </div>
 
     <div class="grid2">
@@ -249,7 +280,7 @@ function compute() {
            savingsRate: totalIncome > 0 ? (totalIncome - totalExpenses) / totalIncome : null, transfers, transferCount, sum };
 }
 
-function renderAll() { const C = compute(); renderTiles(C); renderFiles(); renderIS(C); renderBreakdown(C); renderTx(); }
+function renderAll() { const C = compute(); renderTiles(C); renderFiles(); renderIS(C); renderPlan(C); renderBreakdown(C); renderTx(); }
 
 function renderTiles(C) {
   const first = S.transactions[0].date, last = S.transactions[S.transactions.length - 1].date;
@@ -296,6 +327,42 @@ function renderIS(C) {
   $("is").innerHTML = h;
 }
 
+// ---------- Investing plan: the % of net income you choose to invest ----------
+function renderPlan(C) {
+  const pct = +$("investPct").value;
+  $("investPctVal").textContent = pct + "%";
+  [...$("presets").children].forEach(b => b.classList.toggle("on", +b.dataset.p === pct));
+  const months = Math.max(C.months.length, 1);
+  const avgNet = C.netIncome / months;                 // average net income per month in these statements
+  if (!(C.netIncome > 0)) {
+    $("planOut").innerHTML = `<div class="plan-note" style="font-size:14px">There's no surplus to invest in this period: net income is
+      ${money(C.netIncome)}. Expenses ${C.netIncome < 0 ? "exceeded" : "equaled"} income, so the plan amount is $0.</div>`;
+    return;
+  }
+  const perMonth = avgNet * pct / 100, cashMonth = avgNet - perMonth;
+  $("planOut").innerHTML = `
+    <div class="plan-tiles">
+      <div class="tile big"><div class="k">Invest per month</div><div class="v">${money0(perMonth)}</div></div>
+      <div class="tile"><div class="k">Invest per year</div><div class="v">${money0(perMonth * 12)}</div></div>
+      <div class="tile"><div class="k">Over these ${months} month${months === 1 ? "" : "s"}</div><div class="v">${money0(C.netIncome * pct / 100)}</div></div>
+      <div class="tile"><div class="k">Kept as cash per month</div><div class="v">${money0(cashMonth)}</div></div>
+    </div>
+    <div class="plan-split"><span class="inv" style="width:${pct}%"></span><span class="cash" style="width:${100 - pct}%"></span></div>
+    <div class="plan-legend"><span><i style="background:var(--pink)"></i>Invest ${pct}% · ${money0(perMonth)}/mo</span>
+      <span><i style="background:#e9dfe5"></i>Cash ${100 - pct}% · ${money0(cashMonth)}/mo</span>
+      <span>of an average net income of <b>${money0(avgNet)}</b>/month</span></div>
+    <div class="plan-note">Based on the average monthly net income in your uploaded statements (${money(C.netIncome)} over ${months}
+      month${months === 1 ? "" : "s"}). "Per year" assumes the same monthly net income for 12 months. This is arithmetic on the
+      percentage you choose, not a recommendation of what or whether to invest; consider keeping an emergency cash reserve first.</div>`;
+}
+$("investPct").addEventListener("input", () => S && renderPlan(compute()));
+$("presets").addEventListener("click", (e) => {
+  const b = e.target.closest("[data-p]");
+  if (!b) return;
+  $("investPct").value = b.dataset.p;
+  if (S) renderPlan(compute());
+});
+
 function renderBreakdown(C) {
   const rows = Object.entries(C.exp).map(([c, v]) => [c, C.sum(v)]).filter(([, v]) => v > 0.005).sort((a, b) => b[1] - a[1]);
   const max = rows.length ? rows[0][1] : 1;
@@ -329,7 +396,7 @@ $("tx").addEventListener("change", (e) => {
   if (!sel) return;
   const t = S.transactions[+sel.dataset.id];
   t.category = sel.value; t.method = "you";
-  const C = compute(); renderTiles(C); renderIS(C); renderBreakdown(C);
+  const C = compute(); renderTiles(C); renderIS(C); renderPlan(C); renderBreakdown(C);
   sel.closest("tr").querySelector(".how").outerHTML = `<span class="how you">YOU</span>`;
 });
 $("txSearch").addEventListener("input", renderTx);
