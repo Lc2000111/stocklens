@@ -210,6 +210,8 @@ latest_results (one row per stock, newest snapshot)
   unreliable   1 = spin-off in window, P/E history may be distorted (usually exclude)
   note, error  data caveats; error not null = stock couldn't be analyzed
   run_at       when the snapshot was taken
+  target_mean, target_low, target_high   analysts' 12-month price targets (USD); analysts = how many
+  analyst_rating   consensus rating (strong_buy, buy, hold, sell…); target_upside = target_mean ÷ price − 1 (fraction)
 
 Expensive vs. cheap: high percentiles = expensive vs. the stock's own history, low = cheap. With "most extreme N%":
 "expensive on K measures" = count of pe_pctile >= 100-N, fwd_pctile >= 100-N, peg_pctile >= 100-N;

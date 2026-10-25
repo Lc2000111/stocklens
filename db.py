@@ -70,17 +70,25 @@ create table if not exists earnings_status (
     fetched_at  text not null,
     n_quarters  integer
 );
-create view if not exists latest_results as
+drop view if exists latest_results;
+create view latest_results as
 select r.symbol, s.name, s.sector, s.industry,
        (select group_concat(m.list_name) from memberships m where m.symbol = r.symbol) as lists,
        r.price, r.ttm_eps, r.last_report,
        r.pe, r.percentile as pe_pctile, r.pe_min, r.pe_median, r.pe_max,
        r.fwd_pe, r.fwd_pctile, r.fwd_min, r.fwd_median, r.fwd_max,
        r.peg, r.peg_pctile, r.peg_median,
-       r.growth, r.ltg, r.ltg_analysts, r.fwd_months, r.unreliable, r.note, r.error, run.run_at
+       r.growth, r.ltg, r.ltg_analysts, r.fwd_months, r.unreliable, r.note, r.error, run.run_at,
+       json_extract(p.info, '$.targetMeanPrice') as target_mean,
+       json_extract(p.info, '$.targetLowPrice') as target_low,
+       json_extract(p.info, '$.targetHighPrice') as target_high,
+       json_extract(p.info, '$.numberOfAnalystOpinions') as analysts,
+       json_extract(p.info, '$.recommendationKey') as analyst_rating,
+       json_extract(p.info, '$.targetMeanPrice') / r.price - 1 as target_upside
 from screen_results r
 join stocks s using (symbol)
 join screen_runs run using (run_id)
+left join company_profiles p using (symbol)
 where r.run_id = (select max(run_id) from screen_runs);
 create table if not exists daily_attention (
     session     text not null,        -- trading day, YYYY-MM-DD
@@ -225,8 +233,23 @@ def latest_run():
                 r[key] = json.loads(row[col]) if row[col] else None
             results.append(r)
         n_runs = c.execute("select count(*) from screen_runs").fetchone()[0]
+        targets = {row["symbol"]: (json.loads(row["info"]), row["fetched_at"])
+                   for row in c.execute("select symbol, info, fetched_at from company_profiles")}
+    for r in results:
+        _add_targets(r, *targets.get(r["symbol"], (None, None)))
     return {"runId": run["run_id"], "updated": run["run_at"][:16], "ibesAsOf": run["ibes_as_of"],
             "runs": n_runs, "results": results}
+
+
+def _add_targets(r, info, fetched_at):
+    """Analyst price targets (from the saved Yahoo company details) and upside vs. the screener's price."""
+    if not info or not info.get("targetMeanPrice"):
+        return
+    r.update(target=info["targetMeanPrice"], targetLow=info.get("targetLowPrice"), targetHigh=info.get("targetHighPrice"),
+             analysts=info.get("numberOfAnalystOpinions"), rating=info.get("recommendationKey"),
+             targetAsOf=(fetched_at or "")[:10])
+    if r.get("price"):
+        r["upside"] = round(info["targetMeanPrice"] / r["price"] - 1, 4)
 
 
 def latest_result(symbol):

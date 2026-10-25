@@ -59,11 +59,11 @@
   tbody tr:hover { background: rgba(224, 25, 125, 0.07); }
   tr.dim td { opacity: 0.45; }
   .tk { color: var(--pink); font-weight: 800; }
-  .nm { color: var(--muted); font-size: 12.5px; margin-left: 6px; display: inline-block; max-width: 150px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; vertical-align: bottom; }
+  .nm { color: var(--muted); font-size: 12.5px; margin-left: 6px; display: inline-block; max-width: 128px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; vertical-align: bottom; }
   .warn { color: var(--warn); cursor: help; margin-left: 6px; }
 
   .pbar { display: inline-flex; align-items: center; gap: 10px; }
-  .pbar .track { width: 64px; height: 7px; border-radius: 4px; background: var(--border); overflow: hidden; }
+  .pbar .track { display: none; width: 64px; height: 7px; border-radius: 4px; background: var(--border); overflow: hidden; }
   .pbar .fill { height: 100%; background: linear-gradient(90deg, var(--pink-dim), var(--pink)); }
   .pbar .num { font-weight: 800; min-width: 44px; }
   .hot { color: var(--pink); }
@@ -71,7 +71,7 @@
   .pbar .fill.low { background: linear-gradient(90deg, #86efac, var(--up)); }
   .pbar .fill.mid { background: linear-gradient(90deg, #e5d5de, #b9a6b1); }
 
-  .range { width: 112px; height: 26px; display: block; margin-left: auto; }
+  .range { width: 100px; height: 26px; display: block; margin-left: auto; }
   .spark { width: 96px; height: 30px; display: block; margin-left: auto; }
   tr.hit3 td:first-child { box-shadow: inset 4px 0 0 var(--pink); }
   tr.hit2 td:first-child { box-shadow: inset 4px 0 0 var(--pink-dim); }
@@ -145,9 +145,9 @@
     .tile .v span { font-size: 12px !important; }
     .method { font-size: 13px; }
     /* Table: keep ticker, badge, Now and the three percentiles; drop #, name, median, range bar, growth, history */
-    #head th:nth-child(1), #head th:nth-child(4), #head th:nth-child(5), #head th:nth-child(10), #head th:nth-child(11),
+    #head th:nth-child(1), #head th:nth-child(4), #head th:nth-child(5), #head th:nth-child(11), #head th:nth-child(12),
     #rows tr[data-s] > td:nth-child(1), #rows tr[data-s] > td:nth-child(4), #rows tr[data-s] > td:nth-child(5),
-    #rows tr[data-s] > td:nth-child(10), #rows tr[data-s] > td:nth-child(11) { display: none; }
+    #rows tr[data-s] > td:nth-child(11), #rows tr[data-s] > td:nth-child(12) { display: none; }
     #rows .nm { display: none; }
     .pbar .track { display: none; }
     th, td { padding: 9px 5px; }
@@ -222,6 +222,7 @@
     <p><b>Percentile</b> = share of the past 5 years (days for trailing, months for forward and PEG) with a value at or below today's. Today's forward P/E and PEG use today's price with the latest I/B/E/S consensus. I/B/E/S arrives monthly with a lag; the date is shown above the table.</p>
     <p><b>Expensive / Cheap.</b> "Most extreme 20%" means a stock counts as <b>expensive</b> at the 80th percentile or above, and <b>cheap</b> at the 20th or below, against its own 5-year history.</p>
     <p><b>Badges</b> count how many of the three measures (trailing P/E, forward P/E and PEG) agree. <span class="pill" style="margin:0">ALL 3 HIGH</span> means the stock looks expensive against its own history whichever way you measure it, and <span class="pill low" style="margin:0">ALL 3 LOW</span> means it looks cheap on all three. Outlined <b>2 OF 3</b> badges mean two agree; hover a badge to see which. One measure on its own can mislead: a high trailing P/E may just mean earnings are about to jump, and a low one may come from a one-time gain inflating EPS. So the more measures agree, the stronger the signal. PEG shows n/m (and can't count) when expected growth is under 2%.</p>
+    <p><b>Upside</b> = analysts' average 12-month price target ÷ today's price − 1, from Yahoo's analyst data (saved with the company details; the date is in the tooltip). Targets are opinions, often optimistic, and lag the price.</p>
     <p><b>Caveats.</b> Trailing EPS uses the <em>adjusted</em> figures analysts track, so it can differ from the GAAP P/E on the Stock page. A high percentile can mean the price ran up <em>or</em> earnings/estimates fell; a low one can mean the price fell <em>or</em> earnings rose. Cheap isn't automatically a bargain: it can reflect real problems. Stocks with a spin-off in the window (<span class="warn">⚠</span>) are hidden by default because their earnings before and after aren't comparable. Forward and PEG percentiles need at least 24 months of I/B/E/S history; newer listings show "short". Refresh the I/B/E/S data monthly with <code>.venv/bin/python ibes.py</code>.</p>
     <p><b>Data storage.</b> Everything is saved in a SQLite database, <code>stocklens.db</code>. Each "Refresh prices" adds a snapshot, so you can see how valuations change over time. Edit the stock lists in <code>universe.py</code>; update the S&amp;P 500 list with <code>.venv/bin/python update_index_lists.py</code>.</p>
   </div>
@@ -254,6 +255,7 @@ const COLS = () => [
   ["Trailing", "percentile", basis === "trailing" ? "selcol" : "", "Trailing P/E percentile"],
   ["Forward", "fwdPctile", basis === "forward" ? "selcol" : "", "Forward P/E percentile (I/B/E/S)"],
   ["PEG", "pegPctile", basis === "peg" ? "selcol" : "", "PEG percentile (I/B/E/S)"],
+  ["Upside", "upside", "", "Analysts' average 12-month price target vs. today's price. Hover a value for the target, range, number of analysts and rating"],
   ["Exp. gr.", "growth", "", "Expected next-year EPS growth: next FY consensus ÷ this FY − 1 (I/B/E/S)"],
   ["History", null, "", `${B().label}: ${B().hist === "daily" ? "weekly" : "monthly"} values over the past 5 years`],
   ["", null, "", "AI summary: click a row's ✦ icon"],
@@ -316,7 +318,7 @@ for (const part of location.hash.slice(1).split("-")) {
 function rangeSvg(r) {
   const now = r[B().now], med = r[B().med];
   const lo = Math.min(r[B().min], now), hi = Math.max(r[B().max], now);
-  const W = 112, H = 26, pad = 6;
+  const W = 100, H = 26, pad = 6;
   const x = (v) => pad + ((v - lo) / (hi - lo || 1)) * (W - pad * 2);
   return `<svg class="range" viewBox="0 0 ${W} ${H}">
     <title>5Y low ${B().fmt(r[B().min])} · median ${B().fmt(med)} · high ${B().fmt(r[B().max])} · today ${B().fmt(now)}</title>
@@ -344,6 +346,11 @@ function sparkSvg(vals, now) {
 // 1 → 1st, 2 → 2nd, 3 → 3rd, 11 → 11th, 22 → 22nd
 const ordinal = (n) => { const v = Math.round(n), t = v % 100;
   return v + (t >= 11 && t <= 13 ? "th" : ({ 1: "st", 2: "nd", 3: "rd" })[v % 10] || "th"); };
+// Tooltip for the Upside column
+const RATING = { strong_buy: "Strong buy", buy: "Buy", hold: "Hold", underperform: "Underperform", sell: "Sell", strong_sell: "Strong sell" };
+const targetTip = (r) => !isNum(r.target) ? "No analyst target" :
+  `Average target $${r.target.toFixed(2)}${isNum(r.targetLow) && isNum(r.targetHigh) ? ` (range $${r.targetLow.toFixed(0)}–$${r.targetHigh.toFixed(0)})` : ""}` +
+  `${r.analysts ? ` · ${r.analysts} analysts` : ""}${r.rating && RATING[r.rating] ? ` · consensus: ${RATING[r.rating]}` : ""}${r.targetAsOf ? ` · as of ${r.targetAsOf}` : ""}`;
 const pctText = (v) => isNum(v) ? ordinal(v) : NA;
 
 function render() {
@@ -432,6 +439,7 @@ function render() {
       <td>${scoredRow && isNum(now) && isNum(r[B().min]) ? rangeSvg(r) : NA}</td>
       <td>${scoredRow ? `<span class="pbar"><span class="track"><span class="fill ${isHigh(pct) ? "" : isLow(pct) ? "low" : "mid"}" style="width:${Math.max(pct, 2)}%;display:block"></span></span><span class="num ${zone(pct)}">${ordinal(pct)}</span></span>` : NA}</td>
       ${trio("percentile", "trailing")}${trio("fwdPctile", "forward")}${trio("pegPctile", "peg")}
+      <td title="${targetTip(r)}">${isNum(r.upside) ? `<span class="${r.upside >= 0 ? "up" : "down"}">${r.upside >= 0 ? "+" : ""}${(r.upside * 100).toFixed(0)}%</span>` : NA}</td>
       <td title="${growthTip}">${isNum(r.growth) ? `<span class="${r.growth >= 0 ? "up" : "down"}">${r.growth >= 0 ? "+" : ""}${(r.growth * 100).toFixed(0)}%</span>` : NA}</td>
       <td>${sparkSvg(r[B().spark], basis === "trailing" ? null : now)}</td>
       <td class="aicell"><button class="ai-ico ${aiOpen.has(r.symbol) ? "on" : ""}" data-ai="${r.symbol}" title="AI summary of ${r.symbol}">${SPARK_ICON}</button></td>
